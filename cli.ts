@@ -10,6 +10,7 @@ import { generateText } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { Command } from "commander";
 import chalk from "chalk";
+import ora from "ora";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -28,6 +29,11 @@ program
     .description(chalk.blue("AI-powered commit message generator"))
     .version("1.0.0");
 
+function showInfo() {
+    const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
+    console.log(chalk.gray(`cba: commit-by-ai (using ${modelId})`));
+}
+
 program
     .command("config")
     .description(chalk.yellow("Manage configuration"))
@@ -35,6 +41,7 @@ program
     .argument("[key]", "Configuration key (api_key|model)")
     .argument("[value]", "Configuration value")
     .action(async (action: string, key?: string, value?: string) => {
+        showInfo();
         const configPath = join(__dirname, ".env");
 
         let configData: Record<string, string> = {};
@@ -113,12 +120,14 @@ program
     .command("commit")
     .description(chalk.yellow("Generate commit message for staged changes"))
     .action(async () => {
+        showInfo();
         await generateCommit();
     });
 
 // Main execution - default action
 const args = process.argv.slice(2);
 if (args.length === 0) {
+    showInfo();
     generateCommit();
 } else {
     program.parse();
@@ -138,11 +147,14 @@ async function getStagedDiff(): Promise<string> {
 }
 
 async function generateCommitMessage(diff: string): Promise<string> {
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY || "";
     const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
-    if (!apiKey || !modelId) {
+
+    // Only require API key for paid models (those without ":free" suffix)
+    const isFreeModel = modelId.endsWith(":free");
+    if (!isFreeModel && !apiKey) {
         throw new Error(
-            "OPENROUTER_API_KEY and OPENROUTER_MODEL_ID environment variables are required."
+            "OPENROUTER_API_KEY is required for paid models. Either use a free model or set your API key with: cba config set api_key <your-api-key>"
         );
     }
 
@@ -150,7 +162,7 @@ async function generateCommitMessage(diff: string): Promise<string> {
         apiKey,
     });
 
-    const prompt = `Generate a concise, imperative-style Git commit message (under 72 characters for the subject) based on the following staged changes diff. Do not include any additional information, such as file names or file paths. If the diff is empty, return "No changes". Focus on what changed and why, without unnecessary details:\n\n${diff}`;
+    const prompt = `Generate a concise, imperative-style Git commit message (under 72 characters for the subject) based on the following staged changes diff. Do not include any additional information, such as file names or file paths. If the diff is empty, return "No changes". Use prefixes to describe the type of change (e.g., "feat: ", "fix: ", "docs: ", etc.). Focus on what changed and why, without unnecessary details:\n\n${diff}`;
     const system = `You are a helpful Git assistant. Always respond with just the commit message, no explanations.`;
 
     const { text } = await generateText({
@@ -172,6 +184,30 @@ async function generateCommitMessage(diff: string): Promise<string> {
 
 async function generateCommit(): Promise<void> {
     try {
+        // Check API key and model configuration first
+        const apiKey = process.env.OPENROUTER_API_KEY || "";
+        const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
+        const isFreeModel = modelId.endsWith(":free");
+
+        if (!isFreeModel && !apiKey) {
+            console.error(chalk.red("Error: API key required for paid models"));
+            console.log(chalk.cyan("\nTo use paid models with commit-by-ai, you need:"));
+            console.log(chalk.yellow("1. Get an API key from https://openrouter.ai/"));
+            console.log(chalk.yellow("2. Set up your configuration:"));
+            console.log(chalk.gray("\nSet API key:"));
+            console.log(chalk.green("  cba config set api_key <your-api-key>"));
+            console.log(chalk.gray("\nSet model:"));
+            console.log(chalk.green("  cba config set model <your-model-id>"));
+            console.log(chalk.gray("\nExample paid models:"));
+            console.log(chalk.gray("  - openai/gpt-4o-mini"));
+            console.log(chalk.gray("  - anthropic/claude-3-haiku"));
+            console.log(chalk.gray("\nFree models (no API key required):"));
+            console.log(chalk.gray("  - z-ai/glm-4.5-air:free (default)"));
+            console.log(chalk.gray("  - google/gemma-7b-it:free"));
+            console.log(chalk.gray("  - mistralai/mistral-7b-instruct:free"));
+            process.exit(1);
+        }
+
         let diff = await getStagedDiff();
         let autoAdded = false;
 
@@ -194,7 +230,15 @@ async function generateCommit(): Promise<void> {
             }
         }
 
+        const spinner = ora({
+            text: chalk.cyan("Generating commit message..."),
+            color: "blue",
+            spinner: "dots"
+        }).start();
+
         const message = await generateCommitMessage(diff);
+        spinner.succeed(chalk.green("Commit message generated!"));
+
         console.log(chalk.cyan("\nSuggested commit message:\n"));
         console.log(chalk.green(message));
         console.log(

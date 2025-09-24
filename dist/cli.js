@@ -28349,16 +28349,2566 @@ var chalk = createChalk();
 var chalkStderr = createChalk({ level: stderrColor ? stderrColor.level : 0 });
 var source_default = chalk;
 
+// node_modules/ora/index.js
+import process8 from "node:process";
+
+// node_modules/cli-cursor/index.js
+import process5 from "node:process";
+
+// node_modules/restore-cursor/index.js
+import process4 from "node:process";
+
+// node_modules/mimic-function/index.js
+var copyProperty = (to, from, property, ignoreNonConfigurable) => {
+  if (property === "length" || property === "prototype") {
+    return;
+  }
+  if (property === "arguments" || property === "caller") {
+    return;
+  }
+  const toDescriptor = Object.getOwnPropertyDescriptor(to, property);
+  const fromDescriptor = Object.getOwnPropertyDescriptor(from, property);
+  if (!canCopyProperty(toDescriptor, fromDescriptor) && ignoreNonConfigurable) {
+    return;
+  }
+  Object.defineProperty(to, property, fromDescriptor);
+};
+var canCopyProperty = function(toDescriptor, fromDescriptor) {
+  return toDescriptor === undefined || toDescriptor.configurable || toDescriptor.writable === fromDescriptor.writable && toDescriptor.enumerable === fromDescriptor.enumerable && toDescriptor.configurable === fromDescriptor.configurable && (toDescriptor.writable || toDescriptor.value === fromDescriptor.value);
+};
+var changePrototype = (to, from) => {
+  const fromPrototype = Object.getPrototypeOf(from);
+  if (fromPrototype === Object.getPrototypeOf(to)) {
+    return;
+  }
+  Object.setPrototypeOf(to, fromPrototype);
+};
+var wrappedToString = (withName, fromBody) => `/* Wrapped ${withName}*/
+${fromBody}`;
+var toStringDescriptor = Object.getOwnPropertyDescriptor(Function.prototype, "toString");
+var toStringName = Object.getOwnPropertyDescriptor(Function.prototype.toString, "name");
+var changeToString = (to, from, name18) => {
+  const withName = name18 === "" ? "" : `with ${name18.trim()}() `;
+  const newToString = wrappedToString.bind(null, withName, from.toString());
+  Object.defineProperty(newToString, "name", toStringName);
+  const { writable, enumerable, configurable } = toStringDescriptor;
+  Object.defineProperty(to, "toString", { value: newToString, writable, enumerable, configurable });
+};
+function mimicFunction(to, from, { ignoreNonConfigurable = false } = {}) {
+  const { name: name18 } = to;
+  for (const property of Reflect.ownKeys(from)) {
+    copyProperty(to, from, property, ignoreNonConfigurable);
+  }
+  changePrototype(to, from);
+  changeToString(to, from, name18);
+  return to;
+}
+
+// node_modules/onetime/index.js
+var calledFunctions = new WeakMap;
+var onetime = (function_, options = {}) => {
+  if (typeof function_ !== "function") {
+    throw new TypeError("Expected a function");
+  }
+  let returnValue;
+  let callCount = 0;
+  const functionName = function_.displayName || function_.name || "<anonymous>";
+  const onetime2 = function(...arguments_) {
+    calledFunctions.set(onetime2, ++callCount);
+    if (callCount === 1) {
+      returnValue = function_.apply(this, arguments_);
+      function_ = undefined;
+    } else if (options.throw === true) {
+      throw new Error(`Function \`${functionName}\` can only be called once`);
+    }
+    return returnValue;
+  };
+  mimicFunction(onetime2, function_);
+  calledFunctions.set(onetime2, callCount);
+  return onetime2;
+};
+onetime.callCount = (function_) => {
+  if (!calledFunctions.has(function_)) {
+    throw new Error(`The given function \`${function_.name}\` is not wrapped by the \`onetime\` package`);
+  }
+  return calledFunctions.get(function_);
+};
+var onetime_default = onetime;
+
+// node_modules/signal-exit/dist/mjs/signals.js
+var signals = [];
+signals.push("SIGHUP", "SIGINT", "SIGTERM");
+if (process.platform !== "win32") {
+  signals.push("SIGALRM", "SIGABRT", "SIGVTALRM", "SIGXCPU", "SIGXFSZ", "SIGUSR2", "SIGTRAP", "SIGSYS", "SIGQUIT", "SIGIOT");
+}
+if (process.platform === "linux") {
+  signals.push("SIGIO", "SIGPOLL", "SIGPWR", "SIGSTKFLT");
+}
+
+// node_modules/signal-exit/dist/mjs/index.js
+var processOk = (process3) => !!process3 && typeof process3 === "object" && typeof process3.removeListener === "function" && typeof process3.emit === "function" && typeof process3.reallyExit === "function" && typeof process3.listeners === "function" && typeof process3.kill === "function" && typeof process3.pid === "number" && typeof process3.on === "function";
+var kExitEmitter = Symbol.for("signal-exit emitter");
+var global2 = globalThis;
+var ObjectDefineProperty = Object.defineProperty.bind(Object);
+
+class Emitter {
+  emitted = {
+    afterExit: false,
+    exit: false
+  };
+  listeners = {
+    afterExit: [],
+    exit: []
+  };
+  count = 0;
+  id = Math.random();
+  constructor() {
+    if (global2[kExitEmitter]) {
+      return global2[kExitEmitter];
+    }
+    ObjectDefineProperty(global2, kExitEmitter, {
+      value: this,
+      writable: false,
+      enumerable: false,
+      configurable: false
+    });
+  }
+  on(ev, fn) {
+    this.listeners[ev].push(fn);
+  }
+  removeListener(ev, fn) {
+    const list = this.listeners[ev];
+    const i = list.indexOf(fn);
+    if (i === -1) {
+      return;
+    }
+    if (i === 0 && list.length === 1) {
+      list.length = 0;
+    } else {
+      list.splice(i, 1);
+    }
+  }
+  emit(ev, code, signal) {
+    if (this.emitted[ev]) {
+      return false;
+    }
+    this.emitted[ev] = true;
+    let ret = false;
+    for (const fn of this.listeners[ev]) {
+      ret = fn(code, signal) === true || ret;
+    }
+    if (ev === "exit") {
+      ret = this.emit("afterExit", code, signal) || ret;
+    }
+    return ret;
+  }
+}
+
+class SignalExitBase {
+}
+var signalExitWrap = (handler) => {
+  return {
+    onExit(cb, opts) {
+      return handler.onExit(cb, opts);
+    },
+    load() {
+      return handler.load();
+    },
+    unload() {
+      return handler.unload();
+    }
+  };
+};
+
+class SignalExitFallback extends SignalExitBase {
+  onExit() {
+    return () => {};
+  }
+  load() {}
+  unload() {}
+}
+
+class SignalExit extends SignalExitBase {
+  #hupSig = process3.platform === "win32" ? "SIGINT" : "SIGHUP";
+  #emitter = new Emitter;
+  #process;
+  #originalProcessEmit;
+  #originalProcessReallyExit;
+  #sigListeners = {};
+  #loaded = false;
+  constructor(process3) {
+    super();
+    this.#process = process3;
+    this.#sigListeners = {};
+    for (const sig of signals) {
+      this.#sigListeners[sig] = () => {
+        const listeners = this.#process.listeners(sig);
+        let { count } = this.#emitter;
+        const p = process3;
+        if (typeof p.__signal_exit_emitter__ === "object" && typeof p.__signal_exit_emitter__.count === "number") {
+          count += p.__signal_exit_emitter__.count;
+        }
+        if (listeners.length === count) {
+          this.unload();
+          const ret = this.#emitter.emit("exit", null, sig);
+          const s = sig === "SIGHUP" ? this.#hupSig : sig;
+          if (!ret)
+            process3.kill(process3.pid, s);
+        }
+      };
+    }
+    this.#originalProcessReallyExit = process3.reallyExit;
+    this.#originalProcessEmit = process3.emit;
+  }
+  onExit(cb, opts) {
+    if (!processOk(this.#process)) {
+      return () => {};
+    }
+    if (this.#loaded === false) {
+      this.load();
+    }
+    const ev = opts?.alwaysLast ? "afterExit" : "exit";
+    this.#emitter.on(ev, cb);
+    return () => {
+      this.#emitter.removeListener(ev, cb);
+      if (this.#emitter.listeners["exit"].length === 0 && this.#emitter.listeners["afterExit"].length === 0) {
+        this.unload();
+      }
+    };
+  }
+  load() {
+    if (this.#loaded) {
+      return;
+    }
+    this.#loaded = true;
+    this.#emitter.count += 1;
+    for (const sig of signals) {
+      try {
+        const fn = this.#sigListeners[sig];
+        if (fn)
+          this.#process.on(sig, fn);
+      } catch (_) {}
+    }
+    this.#process.emit = (ev, ...a) => {
+      return this.#processEmit(ev, ...a);
+    };
+    this.#process.reallyExit = (code) => {
+      return this.#processReallyExit(code);
+    };
+  }
+  unload() {
+    if (!this.#loaded) {
+      return;
+    }
+    this.#loaded = false;
+    signals.forEach((sig) => {
+      const listener = this.#sigListeners[sig];
+      if (!listener) {
+        throw new Error("Listener not defined for signal: " + sig);
+      }
+      try {
+        this.#process.removeListener(sig, listener);
+      } catch (_) {}
+    });
+    this.#process.emit = this.#originalProcessEmit;
+    this.#process.reallyExit = this.#originalProcessReallyExit;
+    this.#emitter.count -= 1;
+  }
+  #processReallyExit(code) {
+    if (!processOk(this.#process)) {
+      return 0;
+    }
+    this.#process.exitCode = code || 0;
+    this.#emitter.emit("exit", this.#process.exitCode, null);
+    return this.#originalProcessReallyExit.call(this.#process, this.#process.exitCode);
+  }
+  #processEmit(ev, ...args) {
+    const og = this.#originalProcessEmit;
+    if (ev === "exit" && processOk(this.#process)) {
+      if (typeof args[0] === "number") {
+        this.#process.exitCode = args[0];
+      }
+      const ret = og.call(this.#process, ev, ...args);
+      this.#emitter.emit("exit", this.#process.exitCode, null);
+      return ret;
+    } else {
+      return og.call(this.#process, ev, ...args);
+    }
+  }
+}
+var process3 = globalThis.process;
+var {
+  onExit,
+  load,
+  unload
+} = signalExitWrap(processOk(process3) ? new SignalExit(process3) : new SignalExitFallback);
+
+// node_modules/restore-cursor/index.js
+var terminal = process4.stderr.isTTY ? process4.stderr : process4.stdout.isTTY ? process4.stdout : undefined;
+var restoreCursor = terminal ? onetime_default(() => {
+  onExit(() => {
+    terminal.write("\x1B[?25h");
+  }, { alwaysLast: true });
+}) : () => {};
+var restore_cursor_default = restoreCursor;
+
+// node_modules/cli-cursor/index.js
+var isHidden = false;
+var cliCursor = {};
+cliCursor.show = (writableStream = process5.stderr) => {
+  if (!writableStream.isTTY) {
+    return;
+  }
+  isHidden = false;
+  writableStream.write("\x1B[?25h");
+};
+cliCursor.hide = (writableStream = process5.stderr) => {
+  if (!writableStream.isTTY) {
+    return;
+  }
+  restore_cursor_default();
+  isHidden = true;
+  writableStream.write("\x1B[?25l");
+};
+cliCursor.toggle = (force, writableStream) => {
+  if (force !== undefined) {
+    isHidden = force;
+  }
+  if (isHidden) {
+    cliCursor.show(writableStream);
+  } else {
+    cliCursor.hide(writableStream);
+  }
+};
+var cli_cursor_default = cliCursor;
+// node_modules/cli-spinners/spinners.json
+var spinners_default = {
+  dots: {
+    interval: 80,
+    frames: [
+      "⠋",
+      "⠙",
+      "⠹",
+      "⠸",
+      "⠼",
+      "⠴",
+      "⠦",
+      "⠧",
+      "⠇",
+      "⠏"
+    ]
+  },
+  dots2: {
+    interval: 80,
+    frames: [
+      "⣾",
+      "⣽",
+      "⣻",
+      "⢿",
+      "⡿",
+      "⣟",
+      "⣯",
+      "⣷"
+    ]
+  },
+  dots3: {
+    interval: 80,
+    frames: [
+      "⠋",
+      "⠙",
+      "⠚",
+      "⠞",
+      "⠖",
+      "⠦",
+      "⠴",
+      "⠲",
+      "⠳",
+      "⠓"
+    ]
+  },
+  dots4: {
+    interval: 80,
+    frames: [
+      "⠄",
+      "⠆",
+      "⠇",
+      "⠋",
+      "⠙",
+      "⠸",
+      "⠰",
+      "⠠",
+      "⠰",
+      "⠸",
+      "⠙",
+      "⠋",
+      "⠇",
+      "⠆"
+    ]
+  },
+  dots5: {
+    interval: 80,
+    frames: [
+      "⠋",
+      "⠙",
+      "⠚",
+      "⠒",
+      "⠂",
+      "⠂",
+      "⠒",
+      "⠲",
+      "⠴",
+      "⠦",
+      "⠖",
+      "⠒",
+      "⠐",
+      "⠐",
+      "⠒",
+      "⠓",
+      "⠋"
+    ]
+  },
+  dots6: {
+    interval: 80,
+    frames: [
+      "⠁",
+      "⠉",
+      "⠙",
+      "⠚",
+      "⠒",
+      "⠂",
+      "⠂",
+      "⠒",
+      "⠲",
+      "⠴",
+      "⠤",
+      "⠄",
+      "⠄",
+      "⠤",
+      "⠴",
+      "⠲",
+      "⠒",
+      "⠂",
+      "⠂",
+      "⠒",
+      "⠚",
+      "⠙",
+      "⠉",
+      "⠁"
+    ]
+  },
+  dots7: {
+    interval: 80,
+    frames: [
+      "⠈",
+      "⠉",
+      "⠋",
+      "⠓",
+      "⠒",
+      "⠐",
+      "⠐",
+      "⠒",
+      "⠖",
+      "⠦",
+      "⠤",
+      "⠠",
+      "⠠",
+      "⠤",
+      "⠦",
+      "⠖",
+      "⠒",
+      "⠐",
+      "⠐",
+      "⠒",
+      "⠓",
+      "⠋",
+      "⠉",
+      "⠈"
+    ]
+  },
+  dots8: {
+    interval: 80,
+    frames: [
+      "⠁",
+      "⠁",
+      "⠉",
+      "⠙",
+      "⠚",
+      "⠒",
+      "⠂",
+      "⠂",
+      "⠒",
+      "⠲",
+      "⠴",
+      "⠤",
+      "⠄",
+      "⠄",
+      "⠤",
+      "⠠",
+      "⠠",
+      "⠤",
+      "⠦",
+      "⠖",
+      "⠒",
+      "⠐",
+      "⠐",
+      "⠒",
+      "⠓",
+      "⠋",
+      "⠉",
+      "⠈",
+      "⠈"
+    ]
+  },
+  dots9: {
+    interval: 80,
+    frames: [
+      "⢹",
+      "⢺",
+      "⢼",
+      "⣸",
+      "⣇",
+      "⡧",
+      "⡗",
+      "⡏"
+    ]
+  },
+  dots10: {
+    interval: 80,
+    frames: [
+      "⢄",
+      "⢂",
+      "⢁",
+      "⡁",
+      "⡈",
+      "⡐",
+      "⡠"
+    ]
+  },
+  dots11: {
+    interval: 100,
+    frames: [
+      "⠁",
+      "⠂",
+      "⠄",
+      "⡀",
+      "⢀",
+      "⠠",
+      "⠐",
+      "⠈"
+    ]
+  },
+  dots12: {
+    interval: 80,
+    frames: [
+      "⢀⠀",
+      "⡀⠀",
+      "⠄⠀",
+      "⢂⠀",
+      "⡂⠀",
+      "⠅⠀",
+      "⢃⠀",
+      "⡃⠀",
+      "⠍⠀",
+      "⢋⠀",
+      "⡋⠀",
+      "⠍⠁",
+      "⢋⠁",
+      "⡋⠁",
+      "⠍⠉",
+      "⠋⠉",
+      "⠋⠉",
+      "⠉⠙",
+      "⠉⠙",
+      "⠉⠩",
+      "⠈⢙",
+      "⠈⡙",
+      "⢈⠩",
+      "⡀⢙",
+      "⠄⡙",
+      "⢂⠩",
+      "⡂⢘",
+      "⠅⡘",
+      "⢃⠨",
+      "⡃⢐",
+      "⠍⡐",
+      "⢋⠠",
+      "⡋⢀",
+      "⠍⡁",
+      "⢋⠁",
+      "⡋⠁",
+      "⠍⠉",
+      "⠋⠉",
+      "⠋⠉",
+      "⠉⠙",
+      "⠉⠙",
+      "⠉⠩",
+      "⠈⢙",
+      "⠈⡙",
+      "⠈⠩",
+      "⠀⢙",
+      "⠀⡙",
+      "⠀⠩",
+      "⠀⢘",
+      "⠀⡘",
+      "⠀⠨",
+      "⠀⢐",
+      "⠀⡐",
+      "⠀⠠",
+      "⠀⢀",
+      "⠀⡀"
+    ]
+  },
+  dots13: {
+    interval: 80,
+    frames: [
+      "⣼",
+      "⣹",
+      "⢻",
+      "⠿",
+      "⡟",
+      "⣏",
+      "⣧",
+      "⣶"
+    ]
+  },
+  dots14: {
+    interval: 80,
+    frames: [
+      "⠉⠉",
+      "⠈⠙",
+      "⠀⠹",
+      "⠀⢸",
+      "⠀⣰",
+      "⢀⣠",
+      "⣀⣀",
+      "⣄⡀",
+      "⣆⠀",
+      "⡇⠀",
+      "⠏⠀",
+      "⠋⠁"
+    ]
+  },
+  dots8Bit: {
+    interval: 80,
+    frames: [
+      "⠀",
+      "⠁",
+      "⠂",
+      "⠃",
+      "⠄",
+      "⠅",
+      "⠆",
+      "⠇",
+      "⡀",
+      "⡁",
+      "⡂",
+      "⡃",
+      "⡄",
+      "⡅",
+      "⡆",
+      "⡇",
+      "⠈",
+      "⠉",
+      "⠊",
+      "⠋",
+      "⠌",
+      "⠍",
+      "⠎",
+      "⠏",
+      "⡈",
+      "⡉",
+      "⡊",
+      "⡋",
+      "⡌",
+      "⡍",
+      "⡎",
+      "⡏",
+      "⠐",
+      "⠑",
+      "⠒",
+      "⠓",
+      "⠔",
+      "⠕",
+      "⠖",
+      "⠗",
+      "⡐",
+      "⡑",
+      "⡒",
+      "⡓",
+      "⡔",
+      "⡕",
+      "⡖",
+      "⡗",
+      "⠘",
+      "⠙",
+      "⠚",
+      "⠛",
+      "⠜",
+      "⠝",
+      "⠞",
+      "⠟",
+      "⡘",
+      "⡙",
+      "⡚",
+      "⡛",
+      "⡜",
+      "⡝",
+      "⡞",
+      "⡟",
+      "⠠",
+      "⠡",
+      "⠢",
+      "⠣",
+      "⠤",
+      "⠥",
+      "⠦",
+      "⠧",
+      "⡠",
+      "⡡",
+      "⡢",
+      "⡣",
+      "⡤",
+      "⡥",
+      "⡦",
+      "⡧",
+      "⠨",
+      "⠩",
+      "⠪",
+      "⠫",
+      "⠬",
+      "⠭",
+      "⠮",
+      "⠯",
+      "⡨",
+      "⡩",
+      "⡪",
+      "⡫",
+      "⡬",
+      "⡭",
+      "⡮",
+      "⡯",
+      "⠰",
+      "⠱",
+      "⠲",
+      "⠳",
+      "⠴",
+      "⠵",
+      "⠶",
+      "⠷",
+      "⡰",
+      "⡱",
+      "⡲",
+      "⡳",
+      "⡴",
+      "⡵",
+      "⡶",
+      "⡷",
+      "⠸",
+      "⠹",
+      "⠺",
+      "⠻",
+      "⠼",
+      "⠽",
+      "⠾",
+      "⠿",
+      "⡸",
+      "⡹",
+      "⡺",
+      "⡻",
+      "⡼",
+      "⡽",
+      "⡾",
+      "⡿",
+      "⢀",
+      "⢁",
+      "⢂",
+      "⢃",
+      "⢄",
+      "⢅",
+      "⢆",
+      "⢇",
+      "⣀",
+      "⣁",
+      "⣂",
+      "⣃",
+      "⣄",
+      "⣅",
+      "⣆",
+      "⣇",
+      "⢈",
+      "⢉",
+      "⢊",
+      "⢋",
+      "⢌",
+      "⢍",
+      "⢎",
+      "⢏",
+      "⣈",
+      "⣉",
+      "⣊",
+      "⣋",
+      "⣌",
+      "⣍",
+      "⣎",
+      "⣏",
+      "⢐",
+      "⢑",
+      "⢒",
+      "⢓",
+      "⢔",
+      "⢕",
+      "⢖",
+      "⢗",
+      "⣐",
+      "⣑",
+      "⣒",
+      "⣓",
+      "⣔",
+      "⣕",
+      "⣖",
+      "⣗",
+      "⢘",
+      "⢙",
+      "⢚",
+      "⢛",
+      "⢜",
+      "⢝",
+      "⢞",
+      "⢟",
+      "⣘",
+      "⣙",
+      "⣚",
+      "⣛",
+      "⣜",
+      "⣝",
+      "⣞",
+      "⣟",
+      "⢠",
+      "⢡",
+      "⢢",
+      "⢣",
+      "⢤",
+      "⢥",
+      "⢦",
+      "⢧",
+      "⣠",
+      "⣡",
+      "⣢",
+      "⣣",
+      "⣤",
+      "⣥",
+      "⣦",
+      "⣧",
+      "⢨",
+      "⢩",
+      "⢪",
+      "⢫",
+      "⢬",
+      "⢭",
+      "⢮",
+      "⢯",
+      "⣨",
+      "⣩",
+      "⣪",
+      "⣫",
+      "⣬",
+      "⣭",
+      "⣮",
+      "⣯",
+      "⢰",
+      "⢱",
+      "⢲",
+      "⢳",
+      "⢴",
+      "⢵",
+      "⢶",
+      "⢷",
+      "⣰",
+      "⣱",
+      "⣲",
+      "⣳",
+      "⣴",
+      "⣵",
+      "⣶",
+      "⣷",
+      "⢸",
+      "⢹",
+      "⢺",
+      "⢻",
+      "⢼",
+      "⢽",
+      "⢾",
+      "⢿",
+      "⣸",
+      "⣹",
+      "⣺",
+      "⣻",
+      "⣼",
+      "⣽",
+      "⣾",
+      "⣿"
+    ]
+  },
+  dotsCircle: {
+    interval: 80,
+    frames: [
+      "⢎ ",
+      "⠎⠁",
+      "⠊⠑",
+      "⠈⠱",
+      " ⡱",
+      "⢀⡰",
+      "⢄⡠",
+      "⢆⡀"
+    ]
+  },
+  sand: {
+    interval: 80,
+    frames: [
+      "⠁",
+      "⠂",
+      "⠄",
+      "⡀",
+      "⡈",
+      "⡐",
+      "⡠",
+      "⣀",
+      "⣁",
+      "⣂",
+      "⣄",
+      "⣌",
+      "⣔",
+      "⣤",
+      "⣥",
+      "⣦",
+      "⣮",
+      "⣶",
+      "⣷",
+      "⣿",
+      "⡿",
+      "⠿",
+      "⢟",
+      "⠟",
+      "⡛",
+      "⠛",
+      "⠫",
+      "⢋",
+      "⠋",
+      "⠍",
+      "⡉",
+      "⠉",
+      "⠑",
+      "⠡",
+      "⢁"
+    ]
+  },
+  line: {
+    interval: 130,
+    frames: [
+      "-",
+      "\\",
+      "|",
+      "/"
+    ]
+  },
+  line2: {
+    interval: 100,
+    frames: [
+      "⠂",
+      "-",
+      "–",
+      "—",
+      "–",
+      "-"
+    ]
+  },
+  pipe: {
+    interval: 100,
+    frames: [
+      "┤",
+      "┘",
+      "┴",
+      "└",
+      "├",
+      "┌",
+      "┬",
+      "┐"
+    ]
+  },
+  simpleDots: {
+    interval: 400,
+    frames: [
+      ".  ",
+      ".. ",
+      "...",
+      "   "
+    ]
+  },
+  simpleDotsScrolling: {
+    interval: 200,
+    frames: [
+      ".  ",
+      ".. ",
+      "...",
+      " ..",
+      "  .",
+      "   "
+    ]
+  },
+  star: {
+    interval: 70,
+    frames: [
+      "✶",
+      "✸",
+      "✹",
+      "✺",
+      "✹",
+      "✷"
+    ]
+  },
+  star2: {
+    interval: 80,
+    frames: [
+      "+",
+      "x",
+      "*"
+    ]
+  },
+  flip: {
+    interval: 70,
+    frames: [
+      "_",
+      "_",
+      "_",
+      "-",
+      "`",
+      "`",
+      "'",
+      "´",
+      "-",
+      "_",
+      "_",
+      "_"
+    ]
+  },
+  hamburger: {
+    interval: 100,
+    frames: [
+      "☱",
+      "☲",
+      "☴"
+    ]
+  },
+  growVertical: {
+    interval: 120,
+    frames: [
+      "▁",
+      "▃",
+      "▄",
+      "▅",
+      "▆",
+      "▇",
+      "▆",
+      "▅",
+      "▄",
+      "▃"
+    ]
+  },
+  growHorizontal: {
+    interval: 120,
+    frames: [
+      "▏",
+      "▎",
+      "▍",
+      "▌",
+      "▋",
+      "▊",
+      "▉",
+      "▊",
+      "▋",
+      "▌",
+      "▍",
+      "▎"
+    ]
+  },
+  balloon: {
+    interval: 140,
+    frames: [
+      " ",
+      ".",
+      "o",
+      "O",
+      "@",
+      "*",
+      " "
+    ]
+  },
+  balloon2: {
+    interval: 120,
+    frames: [
+      ".",
+      "o",
+      "O",
+      "°",
+      "O",
+      "o",
+      "."
+    ]
+  },
+  noise: {
+    interval: 100,
+    frames: [
+      "▓",
+      "▒",
+      "░"
+    ]
+  },
+  bounce: {
+    interval: 120,
+    frames: [
+      "⠁",
+      "⠂",
+      "⠄",
+      "⠂"
+    ]
+  },
+  boxBounce: {
+    interval: 120,
+    frames: [
+      "▖",
+      "▘",
+      "▝",
+      "▗"
+    ]
+  },
+  boxBounce2: {
+    interval: 100,
+    frames: [
+      "▌",
+      "▀",
+      "▐",
+      "▄"
+    ]
+  },
+  triangle: {
+    interval: 50,
+    frames: [
+      "◢",
+      "◣",
+      "◤",
+      "◥"
+    ]
+  },
+  binary: {
+    interval: 80,
+    frames: [
+      "010010",
+      "001100",
+      "100101",
+      "111010",
+      "111101",
+      "010111",
+      "101011",
+      "111000",
+      "110011",
+      "110101"
+    ]
+  },
+  arc: {
+    interval: 100,
+    frames: [
+      "◜",
+      "◠",
+      "◝",
+      "◞",
+      "◡",
+      "◟"
+    ]
+  },
+  circle: {
+    interval: 120,
+    frames: [
+      "◡",
+      "⊙",
+      "◠"
+    ]
+  },
+  squareCorners: {
+    interval: 180,
+    frames: [
+      "◰",
+      "◳",
+      "◲",
+      "◱"
+    ]
+  },
+  circleQuarters: {
+    interval: 120,
+    frames: [
+      "◴",
+      "◷",
+      "◶",
+      "◵"
+    ]
+  },
+  circleHalves: {
+    interval: 50,
+    frames: [
+      "◐",
+      "◓",
+      "◑",
+      "◒"
+    ]
+  },
+  squish: {
+    interval: 100,
+    frames: [
+      "╫",
+      "╪"
+    ]
+  },
+  toggle: {
+    interval: 250,
+    frames: [
+      "⊶",
+      "⊷"
+    ]
+  },
+  toggle2: {
+    interval: 80,
+    frames: [
+      "▫",
+      "▪"
+    ]
+  },
+  toggle3: {
+    interval: 120,
+    frames: [
+      "□",
+      "■"
+    ]
+  },
+  toggle4: {
+    interval: 100,
+    frames: [
+      "■",
+      "□",
+      "▪",
+      "▫"
+    ]
+  },
+  toggle5: {
+    interval: 100,
+    frames: [
+      "▮",
+      "▯"
+    ]
+  },
+  toggle6: {
+    interval: 300,
+    frames: [
+      "ဝ",
+      "၀"
+    ]
+  },
+  toggle7: {
+    interval: 80,
+    frames: [
+      "⦾",
+      "⦿"
+    ]
+  },
+  toggle8: {
+    interval: 100,
+    frames: [
+      "◍",
+      "◌"
+    ]
+  },
+  toggle9: {
+    interval: 100,
+    frames: [
+      "◉",
+      "◎"
+    ]
+  },
+  toggle10: {
+    interval: 100,
+    frames: [
+      "㊂",
+      "㊀",
+      "㊁"
+    ]
+  },
+  toggle11: {
+    interval: 50,
+    frames: [
+      "⧇",
+      "⧆"
+    ]
+  },
+  toggle12: {
+    interval: 120,
+    frames: [
+      "☗",
+      "☖"
+    ]
+  },
+  toggle13: {
+    interval: 80,
+    frames: [
+      "=",
+      "*",
+      "-"
+    ]
+  },
+  arrow: {
+    interval: 100,
+    frames: [
+      "←",
+      "↖",
+      "↑",
+      "↗",
+      "→",
+      "↘",
+      "↓",
+      "↙"
+    ]
+  },
+  arrow2: {
+    interval: 80,
+    frames: [
+      "⬆️ ",
+      "↗️ ",
+      "➡️ ",
+      "↘️ ",
+      "⬇️ ",
+      "↙️ ",
+      "⬅️ ",
+      "↖️ "
+    ]
+  },
+  arrow3: {
+    interval: 120,
+    frames: [
+      "▹▹▹▹▹",
+      "▸▹▹▹▹",
+      "▹▸▹▹▹",
+      "▹▹▸▹▹",
+      "▹▹▹▸▹",
+      "▹▹▹▹▸"
+    ]
+  },
+  bouncingBar: {
+    interval: 80,
+    frames: [
+      "[    ]",
+      "[=   ]",
+      "[==  ]",
+      "[=== ]",
+      "[====]",
+      "[ ===]",
+      "[  ==]",
+      "[   =]",
+      "[    ]",
+      "[   =]",
+      "[  ==]",
+      "[ ===]",
+      "[====]",
+      "[=== ]",
+      "[==  ]",
+      "[=   ]"
+    ]
+  },
+  bouncingBall: {
+    interval: 80,
+    frames: [
+      "( ●    )",
+      "(  ●   )",
+      "(   ●  )",
+      "(    ● )",
+      "(     ●)",
+      "(    ● )",
+      "(   ●  )",
+      "(  ●   )",
+      "( ●    )",
+      "(●     )"
+    ]
+  },
+  smiley: {
+    interval: 200,
+    frames: [
+      "😄 ",
+      "😝 "
+    ]
+  },
+  monkey: {
+    interval: 300,
+    frames: [
+      "🙈 ",
+      "🙈 ",
+      "🙉 ",
+      "🙊 "
+    ]
+  },
+  hearts: {
+    interval: 100,
+    frames: [
+      "💛 ",
+      "💙 ",
+      "💜 ",
+      "💚 ",
+      "💗 "
+    ]
+  },
+  clock: {
+    interval: 100,
+    frames: [
+      "🕛 ",
+      "🕐 ",
+      "🕑 ",
+      "🕒 ",
+      "🕓 ",
+      "🕔 ",
+      "🕕 ",
+      "🕖 ",
+      "🕗 ",
+      "🕘 ",
+      "🕙 ",
+      "🕚 "
+    ]
+  },
+  earth: {
+    interval: 180,
+    frames: [
+      "🌍 ",
+      "🌎 ",
+      "🌏 "
+    ]
+  },
+  material: {
+    interval: 17,
+    frames: [
+      "█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "██▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "███▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "████▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "██████▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "██████▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "███████▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "████████▁▁▁▁▁▁▁▁▁▁▁▁",
+      "█████████▁▁▁▁▁▁▁▁▁▁▁",
+      "█████████▁▁▁▁▁▁▁▁▁▁▁",
+      "██████████▁▁▁▁▁▁▁▁▁▁",
+      "███████████▁▁▁▁▁▁▁▁▁",
+      "█████████████▁▁▁▁▁▁▁",
+      "██████████████▁▁▁▁▁▁",
+      "██████████████▁▁▁▁▁▁",
+      "▁██████████████▁▁▁▁▁",
+      "▁██████████████▁▁▁▁▁",
+      "▁██████████████▁▁▁▁▁",
+      "▁▁██████████████▁▁▁▁",
+      "▁▁▁██████████████▁▁▁",
+      "▁▁▁▁█████████████▁▁▁",
+      "▁▁▁▁██████████████▁▁",
+      "▁▁▁▁██████████████▁▁",
+      "▁▁▁▁▁██████████████▁",
+      "▁▁▁▁▁██████████████▁",
+      "▁▁▁▁▁██████████████▁",
+      "▁▁▁▁▁▁██████████████",
+      "▁▁▁▁▁▁██████████████",
+      "▁▁▁▁▁▁▁█████████████",
+      "▁▁▁▁▁▁▁█████████████",
+      "▁▁▁▁▁▁▁▁████████████",
+      "▁▁▁▁▁▁▁▁████████████",
+      "▁▁▁▁▁▁▁▁▁███████████",
+      "▁▁▁▁▁▁▁▁▁███████████",
+      "▁▁▁▁▁▁▁▁▁▁██████████",
+      "▁▁▁▁▁▁▁▁▁▁██████████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁████████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁███████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁██████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█████",
+      "█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁████",
+      "██▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁███",
+      "██▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁███",
+      "███▁▁▁▁▁▁▁▁▁▁▁▁▁▁███",
+      "████▁▁▁▁▁▁▁▁▁▁▁▁▁▁██",
+      "█████▁▁▁▁▁▁▁▁▁▁▁▁▁▁█",
+      "█████▁▁▁▁▁▁▁▁▁▁▁▁▁▁█",
+      "██████▁▁▁▁▁▁▁▁▁▁▁▁▁█",
+      "████████▁▁▁▁▁▁▁▁▁▁▁▁",
+      "█████████▁▁▁▁▁▁▁▁▁▁▁",
+      "█████████▁▁▁▁▁▁▁▁▁▁▁",
+      "█████████▁▁▁▁▁▁▁▁▁▁▁",
+      "█████████▁▁▁▁▁▁▁▁▁▁▁",
+      "███████████▁▁▁▁▁▁▁▁▁",
+      "████████████▁▁▁▁▁▁▁▁",
+      "████████████▁▁▁▁▁▁▁▁",
+      "██████████████▁▁▁▁▁▁",
+      "██████████████▁▁▁▁▁▁",
+      "▁██████████████▁▁▁▁▁",
+      "▁██████████████▁▁▁▁▁",
+      "▁▁▁█████████████▁▁▁▁",
+      "▁▁▁▁▁████████████▁▁▁",
+      "▁▁▁▁▁████████████▁▁▁",
+      "▁▁▁▁▁▁███████████▁▁▁",
+      "▁▁▁▁▁▁▁▁█████████▁▁▁",
+      "▁▁▁▁▁▁▁▁█████████▁▁▁",
+      "▁▁▁▁▁▁▁▁▁█████████▁▁",
+      "▁▁▁▁▁▁▁▁▁█████████▁▁",
+      "▁▁▁▁▁▁▁▁▁▁█████████▁",
+      "▁▁▁▁▁▁▁▁▁▁▁████████▁",
+      "▁▁▁▁▁▁▁▁▁▁▁████████▁",
+      "▁▁▁▁▁▁▁▁▁▁▁▁███████▁",
+      "▁▁▁▁▁▁▁▁▁▁▁▁███████▁",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁███████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁███████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁████",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁███",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁███",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁██",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁██",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁██",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
+      "▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁"
+    ]
+  },
+  moon: {
+    interval: 80,
+    frames: [
+      "🌑 ",
+      "🌒 ",
+      "🌓 ",
+      "🌔 ",
+      "🌕 ",
+      "🌖 ",
+      "🌗 ",
+      "🌘 "
+    ]
+  },
+  runner: {
+    interval: 140,
+    frames: [
+      "🚶 ",
+      "🏃 "
+    ]
+  },
+  pong: {
+    interval: 80,
+    frames: [
+      "▐⠂       ▌",
+      "▐⠈       ▌",
+      "▐ ⠂      ▌",
+      "▐ ⠠      ▌",
+      "▐  ⡀     ▌",
+      "▐  ⠠     ▌",
+      "▐   ⠂    ▌",
+      "▐   ⠈    ▌",
+      "▐    ⠂   ▌",
+      "▐    ⠠   ▌",
+      "▐     ⡀  ▌",
+      "▐     ⠠  ▌",
+      "▐      ⠂ ▌",
+      "▐      ⠈ ▌",
+      "▐       ⠂▌",
+      "▐       ⠠▌",
+      "▐       ⡀▌",
+      "▐      ⠠ ▌",
+      "▐      ⠂ ▌",
+      "▐     ⠈  ▌",
+      "▐     ⠂  ▌",
+      "▐    ⠠   ▌",
+      "▐    ⡀   ▌",
+      "▐   ⠠    ▌",
+      "▐   ⠂    ▌",
+      "▐  ⠈     ▌",
+      "▐  ⠂     ▌",
+      "▐ ⠠      ▌",
+      "▐ ⡀      ▌",
+      "▐⠠       ▌"
+    ]
+  },
+  shark: {
+    interval: 120,
+    frames: [
+      "▐|\\____________▌",
+      "▐_|\\___________▌",
+      "▐__|\\__________▌",
+      "▐___|\\_________▌",
+      "▐____|\\________▌",
+      "▐_____|\\_______▌",
+      "▐______|\\______▌",
+      "▐_______|\\_____▌",
+      "▐________|\\____▌",
+      "▐_________|\\___▌",
+      "▐__________|\\__▌",
+      "▐___________|\\_▌",
+      "▐____________|\\▌",
+      "▐____________/|▌",
+      "▐___________/|_▌",
+      "▐__________/|__▌",
+      "▐_________/|___▌",
+      "▐________/|____▌",
+      "▐_______/|_____▌",
+      "▐______/|______▌",
+      "▐_____/|_______▌",
+      "▐____/|________▌",
+      "▐___/|_________▌",
+      "▐__/|__________▌",
+      "▐_/|___________▌",
+      "▐/|____________▌"
+    ]
+  },
+  dqpb: {
+    interval: 100,
+    frames: [
+      "d",
+      "q",
+      "p",
+      "b"
+    ]
+  },
+  weather: {
+    interval: 100,
+    frames: [
+      "☀️ ",
+      "☀️ ",
+      "☀️ ",
+      "🌤 ",
+      "⛅️ ",
+      "🌥 ",
+      "☁️ ",
+      "🌧 ",
+      "🌨 ",
+      "🌧 ",
+      "🌨 ",
+      "🌧 ",
+      "🌨 ",
+      "⛈ ",
+      "🌨 ",
+      "🌧 ",
+      "🌨 ",
+      "☁️ ",
+      "🌥 ",
+      "⛅️ ",
+      "🌤 ",
+      "☀️ ",
+      "☀️ "
+    ]
+  },
+  christmas: {
+    interval: 400,
+    frames: [
+      "🌲",
+      "🎄"
+    ]
+  },
+  grenade: {
+    interval: 80,
+    frames: [
+      "،  ",
+      "′  ",
+      " ´ ",
+      " ‾ ",
+      "  ⸌",
+      "  ⸊",
+      "  |",
+      "  ⁎",
+      "  ⁕",
+      " ෴ ",
+      "  ⁓",
+      "   ",
+      "   ",
+      "   "
+    ]
+  },
+  point: {
+    interval: 125,
+    frames: [
+      "∙∙∙",
+      "●∙∙",
+      "∙●∙",
+      "∙∙●",
+      "∙∙∙"
+    ]
+  },
+  layer: {
+    interval: 150,
+    frames: [
+      "-",
+      "=",
+      "≡"
+    ]
+  },
+  betaWave: {
+    interval: 80,
+    frames: [
+      "ρββββββ",
+      "βρβββββ",
+      "ββρββββ",
+      "βββρβββ",
+      "ββββρββ",
+      "βββββρβ",
+      "ββββββρ"
+    ]
+  },
+  fingerDance: {
+    interval: 160,
+    frames: [
+      "🤘 ",
+      "🤟 ",
+      "🖖 ",
+      "✋ ",
+      "🤚 ",
+      "👆 "
+    ]
+  },
+  fistBump: {
+    interval: 80,
+    frames: [
+      "🤜　　　　🤛 ",
+      "🤜　　　　🤛 ",
+      "🤜　　　　🤛 ",
+      "　🤜　　🤛　 ",
+      "　　🤜🤛　　 ",
+      "　🤜✨🤛　　 ",
+      "🤜　✨　🤛　 "
+    ]
+  },
+  soccerHeader: {
+    interval: 80,
+    frames: [
+      " 🧑⚽️       🧑 ",
+      "🧑  ⚽️      🧑 ",
+      "🧑   ⚽️     🧑 ",
+      "🧑    ⚽️    🧑 ",
+      "🧑     ⚽️   🧑 ",
+      "🧑      ⚽️  🧑 ",
+      "🧑       ⚽️🧑  ",
+      "🧑      ⚽️  🧑 ",
+      "🧑     ⚽️   🧑 ",
+      "🧑    ⚽️    🧑 ",
+      "🧑   ⚽️     🧑 ",
+      "🧑  ⚽️      🧑 "
+    ]
+  },
+  mindblown: {
+    interval: 160,
+    frames: [
+      "😐 ",
+      "😐 ",
+      "😮 ",
+      "😮 ",
+      "😦 ",
+      "😦 ",
+      "😧 ",
+      "😧 ",
+      "🤯 ",
+      "💥 ",
+      "✨ ",
+      "　 ",
+      "　 ",
+      "　 "
+    ]
+  },
+  speaker: {
+    interval: 160,
+    frames: [
+      "🔈 ",
+      "🔉 ",
+      "🔊 ",
+      "🔉 "
+    ]
+  },
+  orangePulse: {
+    interval: 100,
+    frames: [
+      "🔸 ",
+      "🔶 ",
+      "🟠 ",
+      "🟠 ",
+      "🔶 "
+    ]
+  },
+  bluePulse: {
+    interval: 100,
+    frames: [
+      "🔹 ",
+      "🔷 ",
+      "🔵 ",
+      "🔵 ",
+      "🔷 "
+    ]
+  },
+  orangeBluePulse: {
+    interval: 100,
+    frames: [
+      "🔸 ",
+      "🔶 ",
+      "🟠 ",
+      "🟠 ",
+      "🔶 ",
+      "🔹 ",
+      "🔷 ",
+      "🔵 ",
+      "🔵 ",
+      "🔷 "
+    ]
+  },
+  timeTravel: {
+    interval: 100,
+    frames: [
+      "🕛 ",
+      "🕚 ",
+      "🕙 ",
+      "🕘 ",
+      "🕗 ",
+      "🕖 ",
+      "🕕 ",
+      "🕔 ",
+      "🕓 ",
+      "🕒 ",
+      "🕑 ",
+      "🕐 "
+    ]
+  },
+  aesthetic: {
+    interval: 80,
+    frames: [
+      "▰▱▱▱▱▱▱",
+      "▰▰▱▱▱▱▱",
+      "▰▰▰▱▱▱▱",
+      "▰▰▰▰▱▱▱",
+      "▰▰▰▰▰▱▱",
+      "▰▰▰▰▰▰▱",
+      "▰▰▰▰▰▰▰",
+      "▰▱▱▱▱▱▱"
+    ]
+  },
+  dwarfFortress: {
+    interval: 80,
+    frames: [
+      " ██████£££  ",
+      "☺██████£££  ",
+      "☺██████£££  ",
+      "☺▓█████£££  ",
+      "☺▓█████£££  ",
+      "☺▒█████£££  ",
+      "☺▒█████£££  ",
+      "☺░█████£££  ",
+      "☺░█████£££  ",
+      "☺ █████£££  ",
+      " ☺█████£££  ",
+      " ☺█████£££  ",
+      " ☺▓████£££  ",
+      " ☺▓████£££  ",
+      " ☺▒████£££  ",
+      " ☺▒████£££  ",
+      " ☺░████£££  ",
+      " ☺░████£££  ",
+      " ☺ ████£££  ",
+      "  ☺████£££  ",
+      "  ☺████£££  ",
+      "  ☺▓███£££  ",
+      "  ☺▓███£££  ",
+      "  ☺▒███£££  ",
+      "  ☺▒███£££  ",
+      "  ☺░███£££  ",
+      "  ☺░███£££  ",
+      "  ☺ ███£££  ",
+      "   ☺███£££  ",
+      "   ☺███£££  ",
+      "   ☺▓██£££  ",
+      "   ☺▓██£££  ",
+      "   ☺▒██£££  ",
+      "   ☺▒██£££  ",
+      "   ☺░██£££  ",
+      "   ☺░██£££  ",
+      "   ☺ ██£££  ",
+      "    ☺██£££  ",
+      "    ☺██£££  ",
+      "    ☺▓█£££  ",
+      "    ☺▓█£££  ",
+      "    ☺▒█£££  ",
+      "    ☺▒█£££  ",
+      "    ☺░█£££  ",
+      "    ☺░█£££  ",
+      "    ☺ █£££  ",
+      "     ☺█£££  ",
+      "     ☺█£££  ",
+      "     ☺▓£££  ",
+      "     ☺▓£££  ",
+      "     ☺▒£££  ",
+      "     ☺▒£££  ",
+      "     ☺░£££  ",
+      "     ☺░£££  ",
+      "     ☺ £££  ",
+      "      ☺£££  ",
+      "      ☺£££  ",
+      "      ☺▓££  ",
+      "      ☺▓££  ",
+      "      ☺▒££  ",
+      "      ☺▒££  ",
+      "      ☺░££  ",
+      "      ☺░££  ",
+      "      ☺ ££  ",
+      "       ☺££  ",
+      "       ☺££  ",
+      "       ☺▓£  ",
+      "       ☺▓£  ",
+      "       ☺▒£  ",
+      "       ☺▒£  ",
+      "       ☺░£  ",
+      "       ☺░£  ",
+      "       ☺ £  ",
+      "        ☺£  ",
+      "        ☺£  ",
+      "        ☺▓  ",
+      "        ☺▓  ",
+      "        ☺▒  ",
+      "        ☺▒  ",
+      "        ☺░  ",
+      "        ☺░  ",
+      "        ☺   ",
+      "        ☺  &",
+      "        ☺ ☼&",
+      "       ☺ ☼ &",
+      "       ☺☼  &",
+      "      ☺☼  & ",
+      "      ‼   & ",
+      "     ☺   &  ",
+      "    ‼    &  ",
+      "   ☺    &   ",
+      "  ‼     &   ",
+      " ☺     &    ",
+      "‼      &    ",
+      "      &     ",
+      "      &     ",
+      "     &   ░  ",
+      "     &   ▒  ",
+      "    &    ▓  ",
+      "    &    £  ",
+      "   &    ░£  ",
+      "   &    ▒£  ",
+      "  &     ▓£  ",
+      "  &     ££  ",
+      " &     ░££  ",
+      " &     ▒££  ",
+      "&      ▓££  ",
+      "&      £££  ",
+      "      ░£££  ",
+      "      ▒£££  ",
+      "      ▓£££  ",
+      "      █£££  ",
+      "     ░█£££  ",
+      "     ▒█£££  ",
+      "     ▓█£££  ",
+      "     ██£££  ",
+      "    ░██£££  ",
+      "    ▒██£££  ",
+      "    ▓██£££  ",
+      "    ███£££  ",
+      "   ░███£££  ",
+      "   ▒███£££  ",
+      "   ▓███£££  ",
+      "   ████£££  ",
+      "  ░████£££  ",
+      "  ▒████£££  ",
+      "  ▓████£££  ",
+      "  █████£££  ",
+      " ░█████£££  ",
+      " ▒█████£££  ",
+      " ▓█████£££  ",
+      " ██████£££  ",
+      " ██████£££  "
+    ]
+  }
+};
+
+// node_modules/cli-spinners/index.js
+var cli_spinners_default = spinners_default;
+var spinnersList = Object.keys(spinners_default);
+
+// node_modules/log-symbols/symbols.js
+var exports_symbols = {};
+__export(exports_symbols, {
+  warning: () => warning,
+  success: () => success2,
+  info: () => info,
+  error: () => error45
+});
+
+// node_modules/yoctocolors/base.js
+import tty2 from "node:tty";
+var hasColors = tty2?.WriteStream?.prototype?.hasColors?.() ?? false;
+var format = (open, close) => {
+  if (!hasColors) {
+    return (input) => input;
+  }
+  const openCode = `\x1B[${open}m`;
+  const closeCode = `\x1B[${close}m`;
+  return (input) => {
+    const string4 = input + "";
+    let index = string4.indexOf(closeCode);
+    if (index === -1) {
+      return openCode + string4 + closeCode;
+    }
+    let result = openCode;
+    let lastIndex = 0;
+    const reopenOnNestedClose = close === 22;
+    const replaceCode = (reopenOnNestedClose ? closeCode : "") + openCode;
+    while (index !== -1) {
+      result += string4.slice(lastIndex, index) + replaceCode;
+      lastIndex = index + closeCode.length;
+      index = string4.indexOf(closeCode, lastIndex);
+    }
+    result += string4.slice(lastIndex) + closeCode;
+    return result;
+  };
+};
+var reset = format(0, 0);
+var bold = format(1, 22);
+var dim = format(2, 22);
+var italic = format(3, 23);
+var underline = format(4, 24);
+var overline = format(53, 55);
+var inverse = format(7, 27);
+var hidden = format(8, 28);
+var strikethrough = format(9, 29);
+var black = format(30, 39);
+var red = format(31, 39);
+var green = format(32, 39);
+var yellow = format(33, 39);
+var blue = format(34, 39);
+var magenta = format(35, 39);
+var cyan = format(36, 39);
+var white = format(37, 39);
+var gray = format(90, 39);
+var bgBlack = format(40, 49);
+var bgRed = format(41, 49);
+var bgGreen = format(42, 49);
+var bgYellow = format(43, 49);
+var bgBlue = format(44, 49);
+var bgMagenta = format(45, 49);
+var bgCyan = format(46, 49);
+var bgWhite = format(47, 49);
+var bgGray = format(100, 49);
+var redBright = format(91, 39);
+var greenBright = format(92, 39);
+var yellowBright = format(93, 39);
+var blueBright = format(94, 39);
+var magentaBright = format(95, 39);
+var cyanBright = format(96, 39);
+var whiteBright = format(97, 39);
+var bgRedBright = format(101, 49);
+var bgGreenBright = format(102, 49);
+var bgYellowBright = format(103, 49);
+var bgBlueBright = format(104, 49);
+var bgMagentaBright = format(105, 49);
+var bgCyanBright = format(106, 49);
+var bgWhiteBright = format(107, 49);
+
+// node_modules/is-unicode-supported/index.js
+import process6 from "node:process";
+function isUnicodeSupported() {
+  const { env: env2 } = process6;
+  const { TERM, TERM_PROGRAM } = env2;
+  if (process6.platform !== "win32") {
+    return TERM !== "linux";
+  }
+  return Boolean(env2.WT_SESSION) || Boolean(env2.TERMINUS_SUBLIME) || env2.ConEmuTask === "{cmd::Cmder}" || TERM_PROGRAM === "Terminus-Sublime" || TERM_PROGRAM === "vscode" || TERM === "xterm-256color" || TERM === "alacritty" || TERM === "rxvt-unicode" || TERM === "rxvt-unicode-256color" || env2.TERMINAL_EMULATOR === "JetBrains-JediTerm";
+}
+
+// node_modules/log-symbols/symbols.js
+var _isUnicodeSupported = isUnicodeSupported();
+var info = blue(_isUnicodeSupported ? "ℹ" : "i");
+var success2 = green(_isUnicodeSupported ? "✔" : "√");
+var warning = yellow(_isUnicodeSupported ? "⚠" : "‼");
+var error45 = red(_isUnicodeSupported ? "✖" : "×");
+// node_modules/ansi-regex/index.js
+function ansiRegex({ onlyFirst = false } = {}) {
+  const ST = "(?:\\u0007|\\u001B\\u005C|\\u009C)";
+  const osc = `(?:\\u001B\\][\\s\\S]*?${ST})`;
+  const csi = "[\\u001B\\u009B][[\\]()#;?]*(?:\\d{1,4}(?:[;:]\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]";
+  const pattern = `${osc}|${csi}`;
+  return new RegExp(pattern, onlyFirst ? undefined : "g");
+}
+
+// node_modules/strip-ansi/index.js
+var regex = ansiRegex();
+function stripAnsi(string4) {
+  if (typeof string4 !== "string") {
+    throw new TypeError(`Expected a \`string\`, got \`${typeof string4}\``);
+  }
+  return string4.replace(regex, "");
+}
+
+// node_modules/get-east-asian-width/lookup.js
+function isAmbiguous(x) {
+  return x === 161 || x === 164 || x === 167 || x === 168 || x === 170 || x === 173 || x === 174 || x >= 176 && x <= 180 || x >= 182 && x <= 186 || x >= 188 && x <= 191 || x === 198 || x === 208 || x === 215 || x === 216 || x >= 222 && x <= 225 || x === 230 || x >= 232 && x <= 234 || x === 236 || x === 237 || x === 240 || x === 242 || x === 243 || x >= 247 && x <= 250 || x === 252 || x === 254 || x === 257 || x === 273 || x === 275 || x === 283 || x === 294 || x === 295 || x === 299 || x >= 305 && x <= 307 || x === 312 || x >= 319 && x <= 322 || x === 324 || x >= 328 && x <= 331 || x === 333 || x === 338 || x === 339 || x === 358 || x === 359 || x === 363 || x === 462 || x === 464 || x === 466 || x === 468 || x === 470 || x === 472 || x === 474 || x === 476 || x === 593 || x === 609 || x === 708 || x === 711 || x >= 713 && x <= 715 || x === 717 || x === 720 || x >= 728 && x <= 731 || x === 733 || x === 735 || x >= 768 && x <= 879 || x >= 913 && x <= 929 || x >= 931 && x <= 937 || x >= 945 && x <= 961 || x >= 963 && x <= 969 || x === 1025 || x >= 1040 && x <= 1103 || x === 1105 || x === 8208 || x >= 8211 && x <= 8214 || x === 8216 || x === 8217 || x === 8220 || x === 8221 || x >= 8224 && x <= 8226 || x >= 8228 && x <= 8231 || x === 8240 || x === 8242 || x === 8243 || x === 8245 || x === 8251 || x === 8254 || x === 8308 || x === 8319 || x >= 8321 && x <= 8324 || x === 8364 || x === 8451 || x === 8453 || x === 8457 || x === 8467 || x === 8470 || x === 8481 || x === 8482 || x === 8486 || x === 8491 || x === 8531 || x === 8532 || x >= 8539 && x <= 8542 || x >= 8544 && x <= 8555 || x >= 8560 && x <= 8569 || x === 8585 || x >= 8592 && x <= 8601 || x === 8632 || x === 8633 || x === 8658 || x === 8660 || x === 8679 || x === 8704 || x === 8706 || x === 8707 || x === 8711 || x === 8712 || x === 8715 || x === 8719 || x === 8721 || x === 8725 || x === 8730 || x >= 8733 && x <= 8736 || x === 8739 || x === 8741 || x >= 8743 && x <= 8748 || x === 8750 || x >= 8756 && x <= 8759 || x === 8764 || x === 8765 || x === 8776 || x === 8780 || x === 8786 || x === 8800 || x === 8801 || x >= 8804 && x <= 8807 || x === 8810 || x === 8811 || x === 8814 || x === 8815 || x === 8834 || x === 8835 || x === 8838 || x === 8839 || x === 8853 || x === 8857 || x === 8869 || x === 8895 || x === 8978 || x >= 9312 && x <= 9449 || x >= 9451 && x <= 9547 || x >= 9552 && x <= 9587 || x >= 9600 && x <= 9615 || x >= 9618 && x <= 9621 || x === 9632 || x === 9633 || x >= 9635 && x <= 9641 || x === 9650 || x === 9651 || x === 9654 || x === 9655 || x === 9660 || x === 9661 || x === 9664 || x === 9665 || x >= 9670 && x <= 9672 || x === 9675 || x >= 9678 && x <= 9681 || x >= 9698 && x <= 9701 || x === 9711 || x === 9733 || x === 9734 || x === 9737 || x === 9742 || x === 9743 || x === 9756 || x === 9758 || x === 9792 || x === 9794 || x === 9824 || x === 9825 || x >= 9827 && x <= 9829 || x >= 9831 && x <= 9834 || x === 9836 || x === 9837 || x === 9839 || x === 9886 || x === 9887 || x === 9919 || x >= 9926 && x <= 9933 || x >= 9935 && x <= 9939 || x >= 9941 && x <= 9953 || x === 9955 || x === 9960 || x === 9961 || x >= 9963 && x <= 9969 || x === 9972 || x >= 9974 && x <= 9977 || x === 9979 || x === 9980 || x === 9982 || x === 9983 || x === 10045 || x >= 10102 && x <= 10111 || x >= 11094 && x <= 11097 || x >= 12872 && x <= 12879 || x >= 57344 && x <= 63743 || x >= 65024 && x <= 65039 || x === 65533 || x >= 127232 && x <= 127242 || x >= 127248 && x <= 127277 || x >= 127280 && x <= 127337 || x >= 127344 && x <= 127373 || x === 127375 || x === 127376 || x >= 127387 && x <= 127404 || x >= 917760 && x <= 917999 || x >= 983040 && x <= 1048573 || x >= 1048576 && x <= 1114109;
+}
+function isFullWidth(x) {
+  return x === 12288 || x >= 65281 && x <= 65376 || x >= 65504 && x <= 65510;
+}
+function isWide(x) {
+  return x >= 4352 && x <= 4447 || x === 8986 || x === 8987 || x === 9001 || x === 9002 || x >= 9193 && x <= 9196 || x === 9200 || x === 9203 || x === 9725 || x === 9726 || x === 9748 || x === 9749 || x >= 9776 && x <= 9783 || x >= 9800 && x <= 9811 || x === 9855 || x >= 9866 && x <= 9871 || x === 9875 || x === 9889 || x === 9898 || x === 9899 || x === 9917 || x === 9918 || x === 9924 || x === 9925 || x === 9934 || x === 9940 || x === 9962 || x === 9970 || x === 9971 || x === 9973 || x === 9978 || x === 9981 || x === 9989 || x === 9994 || x === 9995 || x === 10024 || x === 10060 || x === 10062 || x >= 10067 && x <= 10069 || x === 10071 || x >= 10133 && x <= 10135 || x === 10160 || x === 10175 || x === 11035 || x === 11036 || x === 11088 || x === 11093 || x >= 11904 && x <= 11929 || x >= 11931 && x <= 12019 || x >= 12032 && x <= 12245 || x >= 12272 && x <= 12287 || x >= 12289 && x <= 12350 || x >= 12353 && x <= 12438 || x >= 12441 && x <= 12543 || x >= 12549 && x <= 12591 || x >= 12593 && x <= 12686 || x >= 12688 && x <= 12773 || x >= 12783 && x <= 12830 || x >= 12832 && x <= 12871 || x >= 12880 && x <= 42124 || x >= 42128 && x <= 42182 || x >= 43360 && x <= 43388 || x >= 44032 && x <= 55203 || x >= 63744 && x <= 64255 || x >= 65040 && x <= 65049 || x >= 65072 && x <= 65106 || x >= 65108 && x <= 65126 || x >= 65128 && x <= 65131 || x >= 94176 && x <= 94180 || x >= 94192 && x <= 94198 || x >= 94208 && x <= 101589 || x >= 101631 && x <= 101662 || x >= 101760 && x <= 101874 || x >= 110576 && x <= 110579 || x >= 110581 && x <= 110587 || x === 110589 || x === 110590 || x >= 110592 && x <= 110882 || x === 110898 || x >= 110928 && x <= 110930 || x === 110933 || x >= 110948 && x <= 110951 || x >= 110960 && x <= 111355 || x >= 119552 && x <= 119638 || x >= 119648 && x <= 119670 || x === 126980 || x === 127183 || x === 127374 || x >= 127377 && x <= 127386 || x >= 127488 && x <= 127490 || x >= 127504 && x <= 127547 || x >= 127552 && x <= 127560 || x === 127568 || x === 127569 || x >= 127584 && x <= 127589 || x >= 127744 && x <= 127776 || x >= 127789 && x <= 127797 || x >= 127799 && x <= 127868 || x >= 127870 && x <= 127891 || x >= 127904 && x <= 127946 || x >= 127951 && x <= 127955 || x >= 127968 && x <= 127984 || x === 127988 || x >= 127992 && x <= 128062 || x === 128064 || x >= 128066 && x <= 128252 || x >= 128255 && x <= 128317 || x >= 128331 && x <= 128334 || x >= 128336 && x <= 128359 || x === 128378 || x === 128405 || x === 128406 || x === 128420 || x >= 128507 && x <= 128591 || x >= 128640 && x <= 128709 || x === 128716 || x >= 128720 && x <= 128722 || x >= 128725 && x <= 128728 || x >= 128732 && x <= 128735 || x === 128747 || x === 128748 || x >= 128756 && x <= 128764 || x >= 128992 && x <= 129003 || x === 129008 || x >= 129292 && x <= 129338 || x >= 129340 && x <= 129349 || x >= 129351 && x <= 129535 || x >= 129648 && x <= 129660 || x >= 129664 && x <= 129674 || x >= 129678 && x <= 129734 || x === 129736 || x >= 129741 && x <= 129756 || x >= 129759 && x <= 129770 || x >= 129775 && x <= 129784 || x >= 131072 && x <= 196605 || x >= 196608 && x <= 262141;
+}
+
+// node_modules/get-east-asian-width/index.js
+function validate(codePoint) {
+  if (!Number.isSafeInteger(codePoint)) {
+    throw new TypeError(`Expected a code point, got \`${typeof codePoint}\`.`);
+  }
+}
+function eastAsianWidth(codePoint, { ambiguousAsWide = false } = {}) {
+  validate(codePoint);
+  if (isFullWidth(codePoint) || isWide(codePoint) || ambiguousAsWide && isAmbiguous(codePoint)) {
+    return 2;
+  }
+  return 1;
+}
+
+// node_modules/string-width/index.js
+var segmenter = new Intl.Segmenter;
+var zeroWidthClusterRegex = /^(?:\p{Default_Ignorable_Code_Point}|\p{Control}|\p{Mark}|\p{Surrogate})+$/v;
+var leadingNonPrintingRegex = /^[\p{Default_Ignorable_Code_Point}\p{Control}\p{Format}\p{Mark}\p{Surrogate}]+/v;
+var rgiEmojiRegex = /^\p{RGI_Emoji}$/v;
+function baseVisible(segment) {
+  return segment.replace(leadingNonPrintingRegex, "");
+}
+function isZeroWidthCluster(segment) {
+  return zeroWidthClusterRegex.test(segment);
+}
+function trailingHalfwidthWidth(segment, eastAsianWidthOptions) {
+  let extra = 0;
+  if (segment.length > 1) {
+    for (const char of segment.slice(1)) {
+      if (char >= "＀" && char <= "￯") {
+        extra += eastAsianWidth(char.codePointAt(0), eastAsianWidthOptions);
+      }
+    }
+  }
+  return extra;
+}
+function stringWidth(input, options = {}) {
+  if (typeof input !== "string" || input.length === 0) {
+    return 0;
+  }
+  const {
+    ambiguousIsNarrow = true,
+    countAnsiEscapeCodes = false
+  } = options;
+  let string4 = input;
+  if (!countAnsiEscapeCodes) {
+    string4 = stripAnsi(string4);
+  }
+  if (string4.length === 0) {
+    return 0;
+  }
+  let width = 0;
+  const eastAsianWidthOptions = { ambiguousAsWide: !ambiguousIsNarrow };
+  for (const { segment } of segmenter.segment(string4)) {
+    if (isZeroWidthCluster(segment)) {
+      continue;
+    }
+    if (rgiEmojiRegex.test(segment)) {
+      width += 2;
+      continue;
+    }
+    const codePoint = baseVisible(segment).codePointAt(0);
+    width += eastAsianWidth(codePoint, eastAsianWidthOptions);
+    width += trailingHalfwidthWidth(segment, eastAsianWidthOptions);
+  }
+  return width;
+}
+
+// node_modules/is-interactive/index.js
+function isInteractive({ stream = process.stdout } = {}) {
+  return Boolean(stream && stream.isTTY && process.env.TERM !== "dumb" && !("CI" in process.env));
+}
+
+// node_modules/stdin-discarder/index.js
+import process7 from "node:process";
+var ASCII_ETX_CODE = 3;
+
+class StdinDiscarder {
+  #activeCount = 0;
+  start() {
+    this.#activeCount++;
+    if (this.#activeCount === 1) {
+      this.#realStart();
+    }
+  }
+  stop() {
+    if (this.#activeCount <= 0) {
+      throw new Error("`stop` called more times than `start`");
+    }
+    this.#activeCount--;
+    if (this.#activeCount === 0) {
+      this.#realStop();
+    }
+  }
+  #realStart() {
+    if (process7.platform === "win32" || !process7.stdin.isTTY) {
+      return;
+    }
+    process7.stdin.setRawMode(true);
+    process7.stdin.on("data", this.#handleInput);
+    process7.stdin.resume();
+  }
+  #realStop() {
+    if (!process7.stdin.isTTY) {
+      return;
+    }
+    process7.stdin.off("data", this.#handleInput);
+    process7.stdin.pause();
+    process7.stdin.setRawMode(false);
+  }
+  #handleInput(chunk) {
+    if (chunk[0] === ASCII_ETX_CODE) {
+      process7.emit("SIGINT");
+    }
+  }
+}
+var stdinDiscarder = new StdinDiscarder;
+var stdin_discarder_default = stdinDiscarder;
+
+// node_modules/ora/index.js
+class Ora {
+  #linesToClear = 0;
+  #isDiscardingStdin = false;
+  #lineCount = 0;
+  #frameIndex = -1;
+  #lastSpinnerFrameTime = 0;
+  #lastIndent = 0;
+  #options;
+  #spinner;
+  #stream;
+  #id;
+  #initialInterval;
+  #isEnabled;
+  #isSilent;
+  #indent;
+  #text;
+  #prefixText;
+  #suffixText;
+  color;
+  constructor(options) {
+    if (typeof options === "string") {
+      options = {
+        text: options
+      };
+    }
+    this.#options = {
+      color: "cyan",
+      stream: process8.stderr,
+      discardStdin: true,
+      hideCursor: true,
+      ...options
+    };
+    this.color = this.#options.color;
+    this.spinner = this.#options.spinner;
+    this.#initialInterval = this.#options.interval;
+    this.#stream = this.#options.stream;
+    this.#isEnabled = typeof this.#options.isEnabled === "boolean" ? this.#options.isEnabled : isInteractive({ stream: this.#stream });
+    this.#isSilent = typeof this.#options.isSilent === "boolean" ? this.#options.isSilent : false;
+    this.text = this.#options.text;
+    this.prefixText = this.#options.prefixText;
+    this.suffixText = this.#options.suffixText;
+    this.indent = this.#options.indent;
+    if (process8.env.NODE_ENV === "test") {
+      this._stream = this.#stream;
+      this._isEnabled = this.#isEnabled;
+      Object.defineProperty(this, "_linesToClear", {
+        get() {
+          return this.#linesToClear;
+        },
+        set(newValue) {
+          this.#linesToClear = newValue;
+        }
+      });
+      Object.defineProperty(this, "_frameIndex", {
+        get() {
+          return this.#frameIndex;
+        }
+      });
+      Object.defineProperty(this, "_lineCount", {
+        get() {
+          return this.#lineCount;
+        }
+      });
+    }
+  }
+  get indent() {
+    return this.#indent;
+  }
+  set indent(indent = 0) {
+    if (!(indent >= 0 && Number.isInteger(indent))) {
+      throw new Error("The `indent` option must be an integer from 0 and up");
+    }
+    this.#indent = indent;
+    this.#updateLineCount();
+  }
+  get interval() {
+    return this.#initialInterval ?? this.#spinner.interval ?? 100;
+  }
+  get spinner() {
+    return this.#spinner;
+  }
+  set spinner(spinner) {
+    this.#frameIndex = -1;
+    this.#initialInterval = undefined;
+    if (typeof spinner === "object") {
+      if (!Array.isArray(spinner.frames) || spinner.frames.length === 0 || spinner.frames.some((frame) => typeof frame !== "string")) {
+        throw new Error("The given spinner must have a non-empty `frames` array of strings");
+      }
+      if (spinner.interval !== undefined && !(Number.isInteger(spinner.interval) && spinner.interval > 0)) {
+        throw new Error("`spinner.interval` must be a positive integer if provided");
+      }
+      this.#spinner = spinner;
+    } else if (!isUnicodeSupported()) {
+      this.#spinner = cli_spinners_default.line;
+    } else if (spinner === undefined) {
+      this.#spinner = cli_spinners_default.dots;
+    } else if (spinner !== "default" && cli_spinners_default[spinner]) {
+      this.#spinner = cli_spinners_default[spinner];
+    } else {
+      throw new Error(`There is no built-in spinner named '${spinner}'. See https://github.com/sindresorhus/cli-spinners/blob/main/spinners.json for a full list.`);
+    }
+  }
+  get text() {
+    return this.#text;
+  }
+  set text(value = "") {
+    this.#text = value;
+    this.#updateLineCount();
+  }
+  get prefixText() {
+    return this.#prefixText;
+  }
+  set prefixText(value = "") {
+    this.#prefixText = value;
+    this.#updateLineCount();
+  }
+  get suffixText() {
+    return this.#suffixText;
+  }
+  set suffixText(value = "") {
+    this.#suffixText = value;
+    this.#updateLineCount();
+  }
+  get isSpinning() {
+    return this.#id !== undefined;
+  }
+  #formatAffix(value, separator, placeBefore = false) {
+    const resolved = typeof value === "function" ? value() : value;
+    if (typeof resolved === "string" && resolved !== "") {
+      return placeBefore ? separator + resolved : resolved + separator;
+    }
+    return "";
+  }
+  #getFullPrefixText(prefixText = this.#prefixText, postfix = " ") {
+    return this.#formatAffix(prefixText, postfix, false);
+  }
+  #getFullSuffixText(suffixText = this.#suffixText, prefix = " ") {
+    return this.#formatAffix(suffixText, prefix, true);
+  }
+  #computeLineCountFrom(text2, columns) {
+    let count = 0;
+    for (const line of stripAnsi(text2).split(`
+`)) {
+      count += Math.max(1, Math.ceil(stringWidth(line) / columns));
+    }
+    return count;
+  }
+  #updateLineCount() {
+    const columns = this.#stream.columns ?? 80;
+    const prefixText = typeof this.#prefixText === "function" ? "" : this.#prefixText;
+    const suffixText = typeof this.#suffixText === "function" ? "" : this.#suffixText;
+    const fullPrefixText = typeof prefixText === "string" && prefixText !== "" ? prefixText + " " : "";
+    const fullSuffixText = typeof suffixText === "string" && suffixText !== "" ? " " + suffixText : "";
+    const spinnerChar = "-";
+    const fullText = " ".repeat(this.#indent) + fullPrefixText + spinnerChar + (typeof this.#text === "string" ? " " + this.#text : "") + fullSuffixText;
+    this.#lineCount = this.#computeLineCountFrom(fullText, columns);
+  }
+  get isEnabled() {
+    return this.#isEnabled && !this.#isSilent;
+  }
+  set isEnabled(value) {
+    if (typeof value !== "boolean") {
+      throw new TypeError("The `isEnabled` option must be a boolean");
+    }
+    this.#isEnabled = value;
+  }
+  get isSilent() {
+    return this.#isSilent;
+  }
+  set isSilent(value) {
+    if (typeof value !== "boolean") {
+      throw new TypeError("The `isSilent` option must be a boolean");
+    }
+    this.#isSilent = value;
+  }
+  frame() {
+    const now = Date.now();
+    if (this.#frameIndex === -1 || now - this.#lastSpinnerFrameTime >= this.interval) {
+      this.#frameIndex = ++this.#frameIndex % this.#spinner.frames.length;
+      this.#lastSpinnerFrameTime = now;
+    }
+    const { frames } = this.#spinner;
+    let frame = frames[this.#frameIndex];
+    if (this.color) {
+      frame = source_default[this.color](frame);
+    }
+    const fullPrefixText = this.#getFullPrefixText(this.#prefixText, " ");
+    const fullText = typeof this.text === "string" ? " " + this.text : "";
+    const fullSuffixText = this.#getFullSuffixText(this.#suffixText, " ");
+    return fullPrefixText + frame + fullText + fullSuffixText;
+  }
+  clear() {
+    if (!this.#isEnabled || !this.#stream.isTTY) {
+      return this;
+    }
+    this.#stream.cursorTo(0);
+    for (let index = 0;index < this.#linesToClear; index++) {
+      if (index > 0) {
+        this.#stream.moveCursor(0, -1);
+      }
+      this.#stream.clearLine(1);
+    }
+    if (this.#indent || this.#lastIndent !== this.#indent) {
+      this.#stream.cursorTo(this.#indent);
+    }
+    this.#lastIndent = this.#indent;
+    this.#linesToClear = 0;
+    return this;
+  }
+  render() {
+    if (!this.#isEnabled || this.#isSilent) {
+      return this;
+    }
+    this.clear();
+    let frameContent = this.frame();
+    const columns = this.#stream.columns ?? 80;
+    const actualLineCount = this.#computeLineCountFrom(frameContent, columns);
+    const consoleHeight = this.#stream.rows;
+    if (consoleHeight && consoleHeight > 1 && actualLineCount > consoleHeight) {
+      const lines = frameContent.split(`
+`);
+      const maxLines = consoleHeight - 1;
+      frameContent = [...lines.slice(0, maxLines), "... (content truncated to fit terminal)"].join(`
+`);
+    }
+    this.#stream.write(frameContent);
+    this.#linesToClear = this.#computeLineCountFrom(frameContent, columns);
+    return this;
+  }
+  start(text2) {
+    if (text2) {
+      this.text = text2;
+    }
+    if (this.#isSilent) {
+      return this;
+    }
+    if (!this.#isEnabled) {
+      const line = " ".repeat(this.#indent) + this.#getFullPrefixText(this.#prefixText, " ") + (this.text ? `- ${this.text}` : "") + this.#getFullSuffixText(this.#suffixText, " ");
+      if (line.trim() !== "") {
+        this.#stream.write(line + `
+`);
+      }
+      return this;
+    }
+    if (this.isSpinning) {
+      return this;
+    }
+    if (this.#options.hideCursor) {
+      cli_cursor_default.hide(this.#stream);
+    }
+    if (this.#options.discardStdin && process8.stdin.isTTY) {
+      this.#isDiscardingStdin = true;
+      stdin_discarder_default.start();
+    }
+    this.render();
+    this.#id = setInterval(this.render.bind(this), this.interval);
+    return this;
+  }
+  stop() {
+    clearInterval(this.#id);
+    this.#id = undefined;
+    this.#frameIndex = 0;
+    if (this.#isEnabled) {
+      this.clear();
+      if (this.#options.hideCursor) {
+        cli_cursor_default.show(this.#stream);
+      }
+    }
+    if (this.#options.discardStdin && process8.stdin.isTTY && this.#isDiscardingStdin) {
+      stdin_discarder_default.stop();
+      this.#isDiscardingStdin = false;
+    }
+    return this;
+  }
+  succeed(text2) {
+    return this.stopAndPersist({ symbol: exports_symbols.success, text: text2 });
+  }
+  fail(text2) {
+    return this.stopAndPersist({ symbol: exports_symbols.error, text: text2 });
+  }
+  warn(text2) {
+    return this.stopAndPersist({ symbol: exports_symbols.warning, text: text2 });
+  }
+  info(text2) {
+    return this.stopAndPersist({ symbol: exports_symbols.info, text: text2 });
+  }
+  stopAndPersist(options = {}) {
+    if (this.#isSilent) {
+      return this;
+    }
+    const prefixText = options.prefixText ?? this.#prefixText;
+    const fullPrefixText = this.#getFullPrefixText(prefixText, " ");
+    const symbolText = options.symbol ?? " ";
+    const text2 = options.text ?? this.text;
+    const separatorText = symbolText ? " " : "";
+    const fullText = typeof text2 === "string" ? separatorText + text2 : "";
+    const suffixText = options.suffixText ?? this.#suffixText;
+    const fullSuffixText = this.#getFullSuffixText(suffixText, " ");
+    const textToWrite = fullPrefixText + symbolText + fullText + fullSuffixText + `
+`;
+    this.stop();
+    this.#stream.write(textToWrite);
+    return this;
+  }
+}
+function ora(options) {
+  return new Ora(options);
+}
+
 // cli.ts
 var __filename2 = fileURLToPath(import.meta.url);
 var __dirname2 = dirname(__filename2);
 import_dotenv.config({
-  path: join(__dirname2, ".env")
+  path: join(__dirname2, ".env"),
+  quiet: true
 });
 var execAsync = promisify(exec);
 var program2 = new Command;
 program2.name("cba").description(source_default.blue("AI-powered commit message generator")).version("1.0.0");
+function showInfo() {
+  const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
+  console.log(source_default.gray(`cba: commit-by-ai (using ${modelId})`));
+}
 program2.command("config").description(source_default.yellow("Manage configuration")).argument("<action>", "Action to perform (get|set)").argument("[key]", "Configuration key (api_key|model)").argument("[value]", "Configuration value").action(async (action, key, value) => {
+  showInfo();
   const configPath = join(__dirname2, ".env");
   let configData = {};
   if (existsSync(configPath)) {
@@ -28408,10 +30958,12 @@ program2.command("config").description(source_default.yellow("Manage configurati
   }
 });
 program2.command("commit").description(source_default.yellow("Generate commit message for staged changes")).action(async () => {
+  showInfo();
   await generateCommit();
 });
 var args = process.argv.slice(2);
 if (args.length === 0) {
+  showInfo();
   generateCommit();
 } else {
   program2.parse();
@@ -28420,23 +30972,24 @@ async function getStagedDiff() {
   try {
     const { stdout } = await execAsync("git diff --staged");
     return stdout.trim();
-  } catch (error45) {
-    if (error45.code === 128) {
+  } catch (error46) {
+    if (error46.code === 128) {
       return "";
     }
-    throw error45;
+    throw error46;
   }
 }
 async function generateCommitMessage(diff) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY || "";
   const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
-  if (!apiKey || !modelId) {
-    throw new Error("OPENROUTER_API_KEY and OPENROUTER_MODEL_ID environment variables are required.");
+  const isFreeModel = modelId.endsWith(":free");
+  if (!isFreeModel && !apiKey) {
+    throw new Error("OPENROUTER_API_KEY is required for paid models. Either use a free model or set your API key with: cba config set api_key <your-api-key>");
   }
   const openrouter2 = createOpenRouter({
     apiKey
   });
-  const prompt = `Generate a concise, imperative-style Git commit message (under 72 characters for the subject) based on the following staged changes diff. Focus on what changed and why, without unnecessary details:
+  const prompt = `Generate a concise, imperative-style Git commit message (under 72 characters for the subject) based on the following staged changes diff. Do not include any additional information, such as file names or file paths. If the diff is empty, return "No changes". Use prefixes to describe the type of change (e.g., "feat: ", "fix: ", "docs: ", etc.). Focus on what changed and why, without unnecessary details:
 
 ${diff}`;
   const system = `You are a helpful Git assistant. Always respond with just the commit message, no explanations.`;
@@ -28457,6 +31010,32 @@ ${diff}`;
 }
 async function generateCommit() {
   try {
+    const apiKey = process.env.OPENROUTER_API_KEY || "";
+    const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
+    const isFreeModel = modelId.endsWith(":free");
+    if (!isFreeModel && !apiKey) {
+      console.error(source_default.red("Error: API key required for paid models"));
+      console.log(source_default.cyan(`
+To use paid models with commit-by-ai, you need:`));
+      console.log(source_default.yellow("1. Get an API key from https://openrouter.ai/"));
+      console.log(source_default.yellow("2. Set up your configuration:"));
+      console.log(source_default.gray(`
+Set API key:`));
+      console.log(source_default.green("  cba config set api_key <your-api-key>"));
+      console.log(source_default.gray(`
+Set model:`));
+      console.log(source_default.green("  cba config set model <your-model-id>"));
+      console.log(source_default.gray(`
+Example paid models:`));
+      console.log(source_default.gray("  - openai/gpt-4o-mini"));
+      console.log(source_default.gray("  - anthropic/claude-3-haiku"));
+      console.log(source_default.gray(`
+Free models (no API key required):`));
+      console.log(source_default.gray("  - z-ai/glm-4.5-air:free (default)"));
+      console.log(source_default.gray("  - google/gemma-7b-it:free"));
+      console.log(source_default.gray("  - mistralai/mistral-7b-instruct:free"));
+      process.exit(1);
+    }
     let diff = await getStagedDiff();
     let autoAdded = false;
     if (!diff) {
@@ -28469,7 +31048,13 @@ async function generateCommit() {
         process.exit(0);
       }
     }
+    const spinner = ora({
+      text: source_default.cyan("Generating commit message..."),
+      color: "blue",
+      spinner: "dots"
+    }).start();
     const message = await generateCommitMessage(diff);
+    spinner.succeed(source_default.green("Commit message generated!"));
     console.log(source_default.cyan(`
 Suggested commit message:
 `));
@@ -28480,8 +31065,8 @@ Use it with: git commit -m "` + message.replace(/"/g, "\\\"") + '"'));
       console.log(source_default.yellow(`
 Note: All files were automatically staged for this commit.`));
     }
-  } catch (error45) {
-    console.error(source_default.red("Error:", error45.message));
+  } catch (error46) {
+    console.error(source_default.red("Error:", error46.message));
     process.exit(1);
   }
 }

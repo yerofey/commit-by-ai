@@ -19,14 +19,41 @@ bun add -g commit-by-ai
 
 ## Configuration
 
-You will need an OpenRouter API key to use this tool. You can get one from [OpenRouter](https://openrouter.ai/).
+**commit-by-ai** works out of the box with free models! You only need an API key if you want to use paid models.
+
+### Free Models (No API Key Required)
+
+The tool uses `z-ai/glm-4.5-air:free` by default - no setup needed! Other free models include:
+
+- `z-ai/glm-4.5-air:free` (default)
+- `google/gemma-7b-it:free`
+- `mistralai/mistral-7b-instruct:free`
+
+### Paid Models (API Key Required)
+
+For paid models, you'll need an OpenRouter API key from [OpenRouter](https://openrouter.ai/):
 
 ```bash
 # set API key
 cba config set api_key <your-api-key>
 
-# set model
-cba config set model <your-model-id>
+# set a paid model
+cba config set model openai/gpt-4o-mini
+```
+
+Popular paid models:
+- `openai/gpt-4o-mini`
+- `anthropic/claude-3-haiku`
+- `openai/gpt-4o`
+
+### View Current Configuration
+
+```bash
+# show all settings
+cba config get
+
+# show specific setting
+cba config get model
 ```
 
 ## Usage
