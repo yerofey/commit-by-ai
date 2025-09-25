@@ -19,32 +19,37 @@ bun add -g commit-by-ai
 
 ## Configuration
 
-**commit-by-ai** works out of the box with free models! You only need an API key if you want to use paid models.
+**commit-by-ai** supports **any text model from OpenRouter**. You can find all available models and their IDs at [OpenRouter Models](https://openrouter.ai/models).
 
-### Free Models (No API Key Required)
+The tool requires an OpenRouter API key for all models, including free ones.
 
-The tool uses `z-ai/glm-4.5-air:free` by default - no setup needed! Other free models include:
+### Setup
 
-- `z-ai/glm-4.5-air:free` (default)
-- `google/gemma-7b-it:free`
-- `mistralai/mistral-7b-instruct:free`
-
-### Paid Models (API Key Required)
-
-For paid models, you'll need an OpenRouter API key from [OpenRouter](https://openrouter.ai/):
+1. Get an API key from [OpenRouter](https://openrouter.ai/)
+2. Choose a model from [OpenRouter Models](https://openrouter.ai/models)
+3. Configure the tool:
 
 ```bash
 # set API key
 cba config set api_key <your-api-key>
 
-# set a paid model
-cba config set model openai/gpt-4o-mini
+# set model (optional - defaults to deepseek/deepseek-chat-v3.1:free)
+cba config set model <model-id>
 ```
 
-Popular paid models:
-- `openai/gpt-4o-mini`
-- `anthropic/claude-3-haiku`
-- `openai/gpt-4o`
+### Recommended Models
+
+**Free models:**
+- `deepseek/deepseek-chat-v3.1:free` (default)
+- `z-ai/glm-4.5-air:free`
+
+**Paid models:**
+- `openai/gpt-5-mini` (best value)
+- `openai/gpt-5`
+- `openai/gpt-4.1-nano`
+- `google/gemini-2.5-flash-lite`
+
+**Any model** from the [OpenRouter Models page](https://openrouter.ai/models) can be used by copying its model ID.
 
 ### View Current Configuration
 

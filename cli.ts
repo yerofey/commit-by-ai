@@ -22,15 +22,33 @@ config({
 
 const execAsync = promisify(exec);
 
+// Read version from package.json (in root directory)
+function getPackageJson() {
+    const currentDir = join(__dirname, "package.json");
+    const parentDir = join(__dirname, "..", "package.json");
+
+    if (existsSync(currentDir)) {
+        return JSON.parse(readFileSync(currentDir, "utf8"));
+    } else if (existsSync(parentDir)) {
+        return JSON.parse(readFileSync(parentDir, "utf8"));
+    } else {
+        throw new Error("Could not find package.json in current or parent directory");
+    }
+}
+
+const packageJson = getPackageJson();
+
 const program = new Command();
 
 program
     .name("cba")
-    .description(chalk.blue("AI-powered commit message generator"))
-    .version("1.0.0");
+    .description(chalk.blue("AI-powered commit message generator"));
+
+// Add version with -v alias (overriding default -V)
+program.version(packageJson.version, "-v, --version", "output the version number");
 
 function showInfo() {
-    const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
+    const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
     console.log(chalk.gray(`cba: commit-by-ai (using ${modelId})`));
 }
 
@@ -78,7 +96,7 @@ program
                     chalk.green(
                         `OPENROUTER_MODEL_ID: ${
                             configData.OPENROUTER_MODEL_ID ||
-                            "Not set (default: z-ai/glm-4.5-air:free)"
+                            "Not set (default: deepseek/deepseek-chat-v3.1:free)"
                         }`
                     )
                 );
@@ -148,13 +166,12 @@ async function getStagedDiff(): Promise<string> {
 
 async function generateCommitMessage(diff: string): Promise<string> {
     const apiKey = process.env.OPENROUTER_API_KEY || "";
-    const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
+    const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
 
-    // Only require API key for paid models (those without ":free" suffix)
-    const isFreeModel = modelId.endsWith(":free");
-    if (!isFreeModel && !apiKey) {
+    // API key is required for all models
+    if (!apiKey) {
         throw new Error(
-            "OPENROUTER_API_KEY is required for paid models. Either use a free model or set your API key with: cba config set api_key <your-api-key>"
+            "OPENROUTER_API_KEY is required for all models. Get your API key from https://openrouter.ai/ and set it with: cba config set api_key <your-api-key>"
         );
     }
 
@@ -184,27 +201,21 @@ async function generateCommitMessage(diff: string): Promise<string> {
 
 async function generateCommit(): Promise<void> {
     try {
-        // Check API key and model configuration first
+        // Check API key configuration first
         const apiKey = process.env.OPENROUTER_API_KEY || "";
-        const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
-        const isFreeModel = modelId.endsWith(":free");
 
-        if (!isFreeModel && !apiKey) {
-            console.error(chalk.red("Error: API key required for paid models"));
-            console.log(chalk.cyan("\nTo use paid models with commit-by-ai, you need:"));
+        if (!apiKey) {
+            console.error(chalk.red("Error: API key required for all models"));
+            console.log(chalk.cyan("\nTo use commit-by-ai, you need an OpenRouter API key:"));
             console.log(chalk.yellow("1. Get an API key from https://openrouter.ai/"));
             console.log(chalk.yellow("2. Set up your configuration:"));
             console.log(chalk.gray("\nSet API key:"));
             console.log(chalk.green("  cba config set api_key <your-api-key>"));
-            console.log(chalk.gray("\nSet model:"));
+            console.log(chalk.gray("\nSet model (optional):"));
             console.log(chalk.green("  cba config set model <your-model-id>"));
-            console.log(chalk.gray("\nExample paid models:"));
-            console.log(chalk.gray("  - openai/gpt-4o-mini"));
-            console.log(chalk.gray("  - anthropic/claude-3-haiku"));
-            console.log(chalk.gray("\nFree models (no API key required):"));
-            console.log(chalk.gray("  - z-ai/glm-4.5-air:free (default)"));
-            console.log(chalk.gray("  - google/gemma-7b-it:free"));
-            console.log(chalk.gray("  - mistralai/mistral-7b-instruct:free"));
+            console.log(chalk.gray("\nPopular models:"));
+            console.log(chalk.gray("  - deepseek/deepseek-chat-v3.1:free (default)"));
+            console.log(chalk.gray("  - openai/gpt-5-mini"));
             process.exit(1);
         }
 

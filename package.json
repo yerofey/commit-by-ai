@@ -1,6 +1,6 @@
 {
   "name": "commit-by-ai",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "AI-powered commit message generator",
   "type": "module",
   "homepage": "https://github.com/yerofey/commit-by-ai",

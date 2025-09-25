@@ -30901,10 +30901,23 @@ import_dotenv.config({
   quiet: true
 });
 var execAsync = promisify(exec);
+function getPackageJson() {
+  const currentDir = join(__dirname2, "package.json");
+  const parentDir = join(__dirname2, "..", "package.json");
+  if (existsSync(currentDir)) {
+    return JSON.parse(readFileSync(currentDir, "utf8"));
+  } else if (existsSync(parentDir)) {
+    return JSON.parse(readFileSync(parentDir, "utf8"));
+  } else {
+    throw new Error("Could not find package.json in current or parent directory");
+  }
+}
+var packageJson = getPackageJson();
 var program2 = new Command;
-program2.name("cba").description(source_default.blue("AI-powered commit message generator")).version("1.0.0");
+program2.name("cba").description(source_default.blue("AI-powered commit message generator"));
+program2.version(packageJson.version, "-v, --version", "output the version number");
 function showInfo() {
-  const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
+  const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
   console.log(source_default.gray(`cba: commit-by-ai (using ${modelId})`));
 }
 program2.command("config").description(source_default.yellow("Manage configuration")).argument("<action>", "Action to perform (get|set)").argument("[key]", "Configuration key (api_key|model)").argument("[value]", "Configuration value").action(async (action, key, value) => {
@@ -30933,7 +30946,7 @@ program2.command("config").description(source_default.yellow("Manage configurati
     if (!key) {
       console.log(source_default.cyan("Current configuration:"));
       console.log(source_default.green(`OPENROUTER_API_KEY: ${configData.OPENROUTER_API_KEY || "Not set"}`));
-      console.log(source_default.green(`OPENROUTER_MODEL_ID: ${configData.OPENROUTER_MODEL_ID || "Not set (default: z-ai/glm-4.5-air:free)"}`));
+      console.log(source_default.green(`OPENROUTER_MODEL_ID: ${configData.OPENROUTER_MODEL_ID || "Not set (default: deepseek/deepseek-chat-v3.1:free)"}`));
     } else {
       console.log(source_default.green(`${fullKey}: ${configData[fullKey] || "Not set"}`));
     }
@@ -30981,10 +30994,9 @@ async function getStagedDiff() {
 }
 async function generateCommitMessage(diff) {
   const apiKey = process.env.OPENROUTER_API_KEY || "";
-  const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
-  const isFreeModel = modelId.endsWith(":free");
-  if (!isFreeModel && !apiKey) {
-    throw new Error("OPENROUTER_API_KEY is required for paid models. Either use a free model or set your API key with: cba config set api_key <your-api-key>");
+  const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is required for all models. Get your API key from https://openrouter.ai/ and set it with: cba config set api_key <your-api-key>");
   }
   const openrouter2 = createOpenRouter({
     apiKey
@@ -31011,29 +31023,22 @@ ${diff}`;
 async function generateCommit() {
   try {
     const apiKey = process.env.OPENROUTER_API_KEY || "";
-    const modelId = process.env.OPENROUTER_MODEL_ID || "z-ai/glm-4.5-air:free";
-    const isFreeModel = modelId.endsWith(":free");
-    if (!isFreeModel && !apiKey) {
-      console.error(source_default.red("Error: API key required for paid models"));
+    if (!apiKey) {
+      console.error(source_default.red("Error: API key required for all models"));
       console.log(source_default.cyan(`
-To use paid models with commit-by-ai, you need:`));
+To use commit-by-ai, you need an OpenRouter API key:`));
       console.log(source_default.yellow("1. Get an API key from https://openrouter.ai/"));
       console.log(source_default.yellow("2. Set up your configuration:"));
       console.log(source_default.gray(`
 Set API key:`));
       console.log(source_default.green("  cba config set api_key <your-api-key>"));
       console.log(source_default.gray(`
-Set model:`));
+Set model (optional):`));
       console.log(source_default.green("  cba config set model <your-model-id>"));
       console.log(source_default.gray(`
-Example paid models:`));
-      console.log(source_default.gray("  - openai/gpt-4o-mini"));
-      console.log(source_default.gray("  - anthropic/claude-3-haiku"));
-      console.log(source_default.gray(`
-Free models (no API key required):`));
-      console.log(source_default.gray("  - z-ai/glm-4.5-air:free (default)"));
-      console.log(source_default.gray("  - google/gemma-7b-it:free"));
-      console.log(source_default.gray("  - mistralai/mistral-7b-instruct:free"));
+Popular models:`));
+      console.log(source_default.gray("  - deepseek/deepseek-chat-v3.1:free (default)"));
+      console.log(source_default.gray("  - openai/gpt-5-mini"));
       process.exit(1);
     }
     let diff = await getStagedDiff();
