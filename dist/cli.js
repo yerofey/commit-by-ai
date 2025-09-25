@@ -3918,9 +3918,10 @@ var require_commander = __commonJS((exports) => {
 var import_dotenv = __toESM(require_main(), 1);
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { homedir } from "node:os";
 
 // node_modules/@ai-sdk/provider/dist/index.mjs
 var marker = "vercel.ai.error";
@@ -30896,8 +30897,13 @@ function ora(options) {
 // cli.ts
 var __filename2 = fileURLToPath(import.meta.url);
 var __dirname2 = dirname(__filename2);
+var configDir = join(homedir(), ".cba");
+var configPath = join(configDir, ".env");
+if (!existsSync(configDir)) {
+  mkdirSync(configDir, { recursive: true });
+}
 import_dotenv.config({
-  path: join(__dirname2, ".env"),
+  path: configPath,
   quiet: true
 });
 var execAsync = promisify(exec);
@@ -30922,7 +30928,6 @@ function showInfo() {
 }
 program2.command("config").description(source_default.yellow("Manage configuration")).argument("<action>", "Action to perform (get|set)").argument("[key]", "Configuration key (api_key|model)").argument("[value]", "Configuration value").action(async (action, key, value) => {
   showInfo();
-  const configPath = join(__dirname2, ".env");
   let configData = {};
   if (existsSync(configPath)) {
     const envContent = readFileSync(configPath, "utf8");

@@ -3,9 +3,10 @@
 import { config } from "dotenv";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { homedir } from "node:os";
 import { generateText } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { Command } from "commander";
@@ -15,8 +16,17 @@ import ora from "ora";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Use ~/.cba/.env for config to persist across package updates
+const configDir = join(homedir(), ".cba");
+const configPath = join(configDir, ".env");
+
+// Create config directory if it doesn't exist
+if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true });
+}
+
 config({
-    path: join(__dirname, ".env"),
+    path: configPath,
     quiet: true,
 });
 
@@ -60,7 +70,6 @@ program
     .argument("[value]", "Configuration value")
     .action(async (action: string, key?: string, value?: string) => {
         showInfo();
-        const configPath = join(__dirname, ".env");
 
         let configData: Record<string, string> = {};
         if (existsSync(configPath)) {
