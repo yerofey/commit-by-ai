@@ -257,7 +257,7 @@ async function generateCommit(): Promise<void> {
         }).start();
 
         const message = await generateCommitMessage(diff);
-        spinner.succeed(chalk.green("Commit message generated!"));
+        spinner.succeed(chalk.gray("Commit message generated!"));
 
         console.log(chalk.cyan("\nSuggested commit message:\n"));
         console.log(chalk.green(message));

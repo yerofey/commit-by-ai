@@ -31064,7 +31064,7 @@ Popular models:`));
       spinner: "dots"
     }).start();
     const message = await generateCommitMessage(diff);
-    spinner.succeed(source_default.green("Commit message generated!"));
+    spinner.succeed(source_default.gray("Commit message generated!"));
     console.log(source_default.cyan(`
 Suggested commit message:
 `));
