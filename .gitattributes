@@ -1,1 +1,2 @@
 dist/** linguist-generated=true
+cli.ts linguist-language=TypeScript
