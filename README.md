@@ -1,8 +1,8 @@
-# commit-by-ai
+# commit-by-ai [![GitHub stars](https://img.shields.io/github/stars/yerofey/commit-by-ai.svg?style=social&label=Star&maxAge=2592000)](https://GitHub.com/yerofey/commit-by-ai/stargazers/)
 
 > Git commit message generator - write better commits with AI
 
-![cba](https://i.imgur.com/Ca2k2Lp.png)
+![cba](https://i.imgur.com/x4MAo5yl.png)
 
 **commit-by-ai** is a powerful command-line tool that leverages advanced AI models to automatically generate meaningful, context-aware Git commit messages based on your staged changes. Say goodbye to generic commit messages like "fix bug" or "update file" and let AI help you write professional, descriptive commits that clearly communicate what changed and why.
 

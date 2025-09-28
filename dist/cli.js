@@ -30921,10 +30921,24 @@ function getPackageJson() {
 var packageJson = getPackageJson();
 var program2 = new Command;
 program2.name("cba").description(source_default.blue("AI-powered commit message generator"));
-program2.version(packageJson.version, "-v, --version", "output the version number");
-function showInfo() {
-  const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
-  console.log(source_default.gray(`cba: commit-by-ai (using ${modelId})`));
+program2.version(packageJson.version, "-v, --version");
+program2.configureOutput({
+  writeOut: (str) => {
+    if (str.includes(packageJson.version)) {
+      showInfo();
+      console.log(source_default.gray(`version ${packageJson.version}`));
+    } else {
+      process.stdout.write(str);
+    }
+  }
+});
+function showInfo(showModel = false) {
+  if (showModel) {
+    const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
+    console.log(source_default.gray(`cba: commit-by-ai (using ${modelId})`));
+  } else {
+    console.log(source_default.gray("cba: commit-by-ai"));
+  }
 }
 program2.command("config").description(source_default.yellow("Manage configuration")).argument("<action>", "Action to perform (get|set)").argument("[key]", "Configuration key (api_key|model)").argument("[value]", "Configuration value").action(async (action, key, value) => {
   showInfo();
@@ -30976,12 +30990,12 @@ program2.command("config").description(source_default.yellow("Manage configurati
   }
 });
 program2.command("commit").description(source_default.yellow("Generate commit message for staged changes")).action(async () => {
-  showInfo();
+  showInfo(true);
   await generateCommit();
 });
 var args = process.argv.slice(2);
 if (args.length === 0) {
-  showInfo();
+  showInfo(true);
   generateCommit();
 } else {
   program2.parse();
@@ -31010,8 +31024,12 @@ async function generateCommitMessage(diff) {
 
 ${diff}`;
   const system = `You are a helpful Git assistant. Always respond with just the commit message, no explanations.`;
-  const { text: text2 } = await generateText({
-    model: openrouter2.chat(modelId),
+  const response = await generateText({
+    model: openrouter2.chat(modelId, {
+      usage: {
+        include: true
+      }
+    }),
     messages: [
       {
         role: "system",
@@ -31023,7 +31041,11 @@ ${diff}`;
       }
     ]
   });
-  return text2.trim();
+  return {
+    message: response.text.trim(),
+    usage: response.usage,
+    providerMetadata: response.providerMetadata
+  };
 }
 async function generateCommit() {
   try {
@@ -31063,17 +31085,34 @@ Popular models:`));
       color: "blue",
       spinner: "dots"
     }).start();
-    const message = await generateCommitMessage(diff);
+    const result = await generateCommitMessage(diff);
     spinner.succeed(source_default.gray("Commit message generated!"));
     console.log(source_default.cyan(`
 Suggested commit message:
 `));
-    console.log(source_default.green(message));
+    console.log(source_default.green(result.message));
     console.log(source_default.gray(`
-Use it with: git commit -m "` + message.replace(/"/g, "\\\"") + '"'));
+Use it with: ${source_default.blue(`git commit -m "${result.message.replace(/"/g, "\\\"")}"`)}`));
     if (autoAdded) {
       console.log(source_default.yellow(`
 Note: All files were automatically staged for this commit.`));
+    }
+    const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
+    if (result.providerMetadata?.openrouter?.usage) {
+      const openrouterUsage = result.providerMetadata.openrouter.usage;
+      const { cost, totalTokens } = openrouterUsage;
+      console.log(source_default.gray(`
+Tokens used: ${totalTokens} total (${modelId})`));
+      if (!modelId.includes(":free") && cost !== undefined && cost !== null && Number(cost) > 0) {
+        console.log(source_default.gray(`Cost: $${Number(cost).toFixed(6)}`));
+      }
+    } else if (result.usage) {
+      const { totalTokens } = result.usage;
+      console.log(source_default.gray(`
+Tokens used: ${totalTokens} total (${modelId})`));
+      if (!modelId.includes(":free")) {
+        console.log(source_default.gray(`Cost: Unknown (usage accounting not available)`));
+      }
     }
   } catch (error46) {
     console.error(source_default.red("Error:", error46.message));

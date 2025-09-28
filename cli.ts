@@ -54,12 +54,26 @@ program
     .name("cba")
     .description(chalk.blue("AI-powered commit message generator"));
 
-// Add version with -v alias (overriding default -V)
-program.version(packageJson.version, "-v, --version", "output the version number");
+// Custom version handling with consistent formatting
+program.version(packageJson.version, "-v, --version");
+program.configureOutput({
+    writeOut: (str) => {
+        if (str.includes(packageJson.version)) {
+            showInfo();
+            console.log(chalk.gray(`version ${packageJson.version}`));
+        } else {
+            process.stdout.write(str);
+        }
+    }
+});
 
-function showInfo() {
-    const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
-    console.log(chalk.gray(`cba: commit-by-ai (using ${modelId})`));
+function showInfo(showModel = false) {
+    if (showModel) {
+        const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
+        console.log(chalk.gray(`cba: commit-by-ai (using ${modelId})`));
+    } else {
+        console.log(chalk.gray("cba: commit-by-ai"));
+    }
 }
 
 program
@@ -147,14 +161,14 @@ program
     .command("commit")
     .description(chalk.yellow("Generate commit message for staged changes"))
     .action(async () => {
-        showInfo();
+        showInfo(true);
         await generateCommit();
     });
 
 // Main execution - default action
 const args = process.argv.slice(2);
 if (args.length === 0) {
-    showInfo();
+    showInfo(true);
     generateCommit();
 } else {
     program.parse();
@@ -173,7 +187,7 @@ async function getStagedDiff(): Promise<string> {
     }
 }
 
-async function generateCommitMessage(diff: string): Promise<string> {
+async function generateCommitMessage(diff: string): Promise<{ message: string; usage?: any; providerMetadata?: any }> {
     const apiKey = process.env.OPENROUTER_API_KEY || "";
     const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
 
@@ -191,8 +205,12 @@ async function generateCommitMessage(diff: string): Promise<string> {
     const prompt = `Generate a concise, imperative-style Git commit message (under 72 characters for the subject) based on the following staged changes diff. Do not include any additional information, such as file names or file paths. If the diff is empty, return "No changes". Use prefixes to describe the type of change (e.g., "feat: ", "fix: ", "docs: ", etc.). Focus on what changed and why, without unnecessary details:\n\n${diff}`;
     const system = `You are a helpful Git assistant. Always respond with just the commit message, no explanations.`;
 
-    const { text } = await generateText({
-        model: openrouter.chat(modelId),
+    const response = await generateText({
+        model: openrouter.chat(modelId, {
+            usage: {
+                include: true,
+            },
+        }),
         messages: [
             {
                 role: "system",
@@ -205,7 +223,11 @@ async function generateCommitMessage(diff: string): Promise<string> {
         ],
     });
 
-    return text.trim();
+    return {
+        message: response.text.trim(),
+        usage: response.usage,
+        providerMetadata: response.providerMetadata
+    };
 }
 
 async function generateCommit(): Promise<void> {
@@ -256,16 +278,14 @@ async function generateCommit(): Promise<void> {
             spinner: "dots"
         }).start();
 
-        const message = await generateCommitMessage(diff);
+        const result = await generateCommitMessage(diff);
         spinner.succeed(chalk.gray("Commit message generated!"));
 
         console.log(chalk.cyan("\nSuggested commit message:\n"));
-        console.log(chalk.green(message));
+        console.log(chalk.green(result.message));
         console.log(
             chalk.gray(
-                '\nUse it with: git commit -m "' +
-                    message.replace(/"/g, '\\"') +
-                    '"'
+                `\nUse it with: ${chalk.blue(`git commit -m "${result.message.replace(/"/g, '\\"')}"`)}`
             )
         );
 
@@ -275,6 +295,31 @@ async function generateCommit(): Promise<void> {
                     "\nNote: All files were automatically staged for this commit."
                 )
             );
+        }
+
+        // Display cost information if available
+        const modelId = process.env.OPENROUTER_MODEL_ID || "deepseek/deepseek-chat-v3.1:free";
+
+        if (result.providerMetadata?.openrouter?.usage) {
+            const openrouterUsage = result.providerMetadata.openrouter.usage;
+            const { cost, totalTokens } = openrouterUsage;
+
+            console.log(chalk.gray(`\nTokens used: ${totalTokens} total (${modelId})`));
+
+            // Only show cost if model is not free (doesn't contain :free in name)
+            if (!modelId.includes(':free') && cost !== undefined && cost !== null && Number(cost) > 0) {
+                console.log(chalk.gray(`Cost: $${Number(cost).toFixed(6)}`));
+            }
+        } else if (result.usage) {
+            // Fallback to basic token usage if providerMetadata is not available
+            const { totalTokens } = result.usage;
+
+            console.log(chalk.gray(`\nTokens used: ${totalTokens} total (${modelId})`));
+
+            // Only show cost if model is not free (doesn't contain :free in name)
+            if (!modelId.includes(':free')) {
+                console.log(chalk.gray(`Cost: Unknown (usage accounting not available)`));
+            }
         }
     } catch (error: any) {
         console.error(chalk.red("Error:", error.message));
